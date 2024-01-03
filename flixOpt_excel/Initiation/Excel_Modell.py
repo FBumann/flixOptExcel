@@ -142,7 +142,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
     co2_limit_effects = []
     co2_limiter_shares = {}
     for year in years:
-        if year in co2_limit_dict:
+        if co2_limit_dict.get(year) is not None:
             co2_limit_yearly = cEffectType(f"CO2_limit_{year}", 't',
                                            description="Effect to limit the Emissions in that year",
                                            max_operationSum=co2_limit_dict[year])
