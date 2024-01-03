@@ -147,8 +147,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                                            description="Effect to limit the Emissions in that year",
                                            max_operationSum=co2_limit_dict[year])
             co2_limit_effects.append(co2_limit_yearly)
-            exists = handle_operation_years({"Startjahr": year, "Endjahr": year}, years)
-            co2_limiter_shares[co2_limit_yearly] = pd.DataFrame(exists)
+            co2_limiter_shares[co2_limit_yearly] = handle_operation_years({"Startjahr": year, "Endjahr": year}, years)
 
     energy_system.addEffects(*co2_limit_effects)
 
