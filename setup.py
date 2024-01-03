@@ -12,6 +12,5 @@ setup(
     package_data={
         'flixOptExcel': ['flixOpt_excel/resources/ExcelTemplates/*.xlsx'],
     },
-    #install_requires=read_requirements('requirements.txt')
-    install_requires=['matplotlib==3.8.2', 'networkx==3.2.1', 'openpyxl==3.1.2', 'plotly==5.18.0', 'pprintpp==0.4.0', 'git+https://github.com/FBumann/flixOpt.git']
+    install_requires=read_requirements('requirements.txt')
 )
