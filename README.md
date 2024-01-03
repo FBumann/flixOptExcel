@@ -9,7 +9,7 @@ This package is an Extension of the flixOpt-package from GitHub. This package ge
 
 ## Useage
 1. Create a new Python project in your IDE (PyCharm, Spyder, ...) and activate it
-2. Install this package via pip in to your environment: `pip install git+https://github.com/FBumann/flixOptExcel.git`
+2. Install this package via pip in to your environment: `pip install git+https://github.com/FBumann/flixOptExcel.git@main`
 3. Copy the "main.py" file from this package into your project.
 4. Make a local copy of the Template_DataInput.xlsx and save it somewhere on your Computer (for. ex. Desktop)
 5. Copy the path of the new file into the "main.py" file
