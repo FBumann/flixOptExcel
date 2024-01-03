@@ -5,7 +5,7 @@ from flixOpt_excel.Initiation.Excel_Modell import run_excel_model
 
 
 # Specify paths and solver_name
-excel_file_path = '/Users/felix/Documents/Dokumente - eigene/Arbeit_SE_Trainee/DataInput mehrere Jahre.xlsx'
+excel_file_path = '/Absolute/path/to/the/excel/file/with/the/Inputdata.xlsx'
 
 
 solver_name = "cbc"         #  open source solver
