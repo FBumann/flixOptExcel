@@ -10,7 +10,7 @@ from pprintpp import pprint as pp
 from typing import Literal, List
 
 from flixOpt_excel.Initiation.HelperFcts_in import *
-from flixOpt_FB.flixOpt.flixComps import *
+from flixOpt.flixComps import *
 from flixOpt_excel.Evaluation import graphics_excel
 
 

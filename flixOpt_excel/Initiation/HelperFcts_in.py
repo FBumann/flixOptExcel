@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from typing import List
 
-from flixOpt_FB.flixOpt.flixPlotHelperFcts import *
+from flixOpt.flixPlotHelperFcts import *
 
 # Validation
 def check_dataframe_consistency(df: pd.DataFrame, years: List[int], name_of_df: str = "Unnamed Dataframe"):

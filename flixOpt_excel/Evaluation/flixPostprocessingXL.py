@@ -6,8 +6,8 @@ import networkx as nx
 import plotly.graph_objects as go
 import plotly.express as px
 
-from flixOpt_FB.flixOpt.flixPostprocessing import flix_results
-from flixOpt_FB.flixOpt.flixStructure import cEnergySystem
+from flixOpt.flixPostprocessing import flix_results
+from flixOpt.flixStructure import cEnergySystem
 
 class flixPostXL(flix_results):
     def __init__(self, nameOfCalc, results_folder, outputYears):
