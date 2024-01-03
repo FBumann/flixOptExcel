@@ -28,3 +28,8 @@ This package is an Extension of the flixOpt-package from GitHub. This package ge
       6. ...
 7. Run the main.py file
 8. Analyse the results of your Model. It's saved under the path you specified in the input-excel-flie
+
+## Update
+To update the repository to the newest version, simply do a clean uninstall and reinstall:
+`pip uninstall flixOptExcel `
+`pip install --upgrade git+https://github.com/FBumann/flixOptExcel.git@main`
