@@ -215,7 +215,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
-            aKWK = cKWK(label=item["label"], exists=exists, group=item.get("group", None),
+            aKWK = cKWK(label=item["label"], exists=exists, group=item.get("group"),
                         eta_th=item["eta_th"], eta_el=item["eta_el"],
                         Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest),
                         P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
@@ -240,7 +240,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
-            aKessel = cKessel(label=item["label"], exists=exists, group=item.get("group", None),
+            aKessel = cKessel(label=item["label"], exists=exists, group=item.get("group"),
                               eta=item["eta_th"],
                               Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest),
                               Q_fu=cFlow(label='Qfu', bus=fuel_bus, costsPerFlowHour=fuel_costs)
@@ -267,7 +267,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
             aEHK = cEHK(label=item["label"], eta=item["eta_th"],
-                        exists=exists, group=item.get("group", None),
+                        exists=exists, group=item.get("group"),
                         Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists,
                                    nominal_val=nominal_val, investArgs=invest),
                         P_el=cFlow(label='Pel', bus=BusInput, costsPerFlowHour=fuel_costs)
@@ -298,7 +298,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
             aWP = cHeatPump(label=item["label"], COP=COP,
-                            exists=exists, group=item.get("group", None),
+                            exists=exists, group=item.get("group"),
                             Q_th=cFlow(label='Qth', bus=b_fernwaerme,
                                        nominal_val=nominal_val, exists=exists,
                                        max_rel=max_rel,
@@ -358,7 +358,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                          investArgs=invest)
 
             aAbwaermeHT = cBaseLinearTransformer(label=item["label"],
-                                                 exists=exists, group=item.get("group", None),
+                                                 exists=exists, group=item.get("group"),
                                                  inputs=[Qin], outputs=[Qout], factor_Sets=[{Qin: 1, Qout: 1}])
             AbwaermeHTs.append(aAbwaermeHT)
         energy_system.addComponents(*AbwaermeHTs)
@@ -387,7 +387,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
             aAbwaermeWP = cAbwaermeHP(label=item["label"], COP=COP,
-                                      exists=exists, group=item.get("group", None),
+                                      exists=exists, group=item.get("group"),
                                       Q_th=cFlow(label='Qth', bus=b_fernwaerme,
                                                  nominal_val=nominal_val, exists=exists,
                                                  max_rel=max_rel,
@@ -428,7 +428,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             # </editor-fold>
 
             aStorage = cStorage(label=item["label"],
-                                exists=exists, group=item.get("group", None),
+                                exists=exists, group=item.get("group"),
                                 inFlow=cFlow(label="QthLoad", bus=b_fernwaerme,
                                              nominal_val=nominal_val_flows, exists=exists, investArgs=Invest_flow_in),
                                 outFlow=cFlow(label="QthUnload", bus=b_fernwaerme,
@@ -470,7 +470,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             aCooler = cCoolingTower(label=item["label"],
                                     specificElectricityDemand=item.get("specificElectricityDemand", None),
-                                    exists=exists, group=item.get("group", None),
+                                    exists=exists, group=item.get("group"),
                                     Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists, max_rel=max_rel,
                                                nominal_val=nominal_val,
                                                costsPerRunningHour={e_costs: item.get("costsPerRunningHour", None)},
