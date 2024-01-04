@@ -114,7 +114,6 @@ def linear_interpolation_with_bounds(input_data: pd.Series, lower_bound: float, 
                                (input_data.iloc[i] - lower_bound))
     return pd.Series(output_array, index=input_data.index)
 
-
 def handle_heating_network(zeitreihen: pd.DataFrame) -> pd.DataFrame:
     """
     Handle heating network parameters in the input DataFrame.
@@ -215,7 +214,7 @@ def handle_component_data(df:pd.DataFrame)-> dict:
 
     # <editor-fold desc="Check for invalid Comp types">
     Erzeugertypen = ('KWK', 'Kessel', 'Speicher', 'EHK', 'Waermepumpe', 'AbwaermeHT', 'AbwaermeWP', 'Rueckkuehler',
-                     'TAB')  # DONT CHANGE!!!
+                     'KWKekt')  # DONT CHANGE!!!
     print("Accepted types of Components:")
     print(Erzeugertypen)
     for typ in df.iloc[0, :].dropna():
@@ -284,6 +283,11 @@ def relabel_component_data(df:pd.DataFrame):
                     'Zusatzkosten pro MWh Strom': 'ZusatzkostenEnergieInput',
                     'Startjahr': 'Startjahr',
                     'Endjahr': 'Endjahr',
+
+                    # KWKekt
+                    'Thermische Leistung (Stützpunkte)': 'steps_Qth',
+                    'Elektrische Leistung (Stützpunkte)': 'steps_Pel',
+                    'Brennstoff Leistung (Stützpunkte)': 'steps_Qfu',
 
                     # Wärmepumpen
                     'MindestSCOP': 'MindestSCOP',
@@ -682,3 +686,17 @@ def repeat_elements_of_list(original_list:[int], repetitions:int=8760) -> np.nda
     if original_list is None: return None
     repeated_array = [item for item in original_list for _ in range(repetitions)]
     return repeated_array
+
+
+def string_to_list(delimited_string: str, delimiter: str = '-') -> list:
+    """
+    Convert a string of hyphen-separated numbers to a list of floats.
+
+    Parameters:
+    - delimited_string (str): The input string containing delimited numbers.
+    - delimiter (str): The delimiter
+
+    Returns:
+    - list: A list of floats representing the numbers in the input string.
+    """
+    return list(map(float, delimited_string.split(delimiter)))

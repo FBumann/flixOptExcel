@@ -310,32 +310,39 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
         energy_system.addComponents(*WPs)
     # </editor-fold>
-    # <editor-fold desc="TAB">
-    if "TAB" in erz_daten:
-        TABs = list()
-        for item in erz_daten["TAB"]:
-            if item.get("ZusatzkostenEnergieInput") is None:
-                FuelcostsEBS = {e_costs: preiszeitreihen["costsBezugEBS"]}
-            else:
-                FuelcostsEBS = {e_costs: preiszeitreihen["costsBezugEBS"] + item["ZusatzkostenEnergieInput"]}
-            # Investment
-            invest = get_invest_from_excel(item, e_costs, e_funding, years, is_flow=True)
+    # <editor-fold desc="KWKekt">
+    if "KWKekt" in erz_daten:
+        KWKekts = list()
+        for item in erz_daten["KWKekt"]:
+            # Zuweisung Brennstoff und Netzentgelte
+            # TODO: handle CO2 split for electricity and heat
+            fuel_bus, fuel_costs = handle_fuel_input_switch_excel(item, preiszeitreihen, b_gas, b_wasserstoff, b_ebs, e_costs,
+                                                                  e_co2, t_co2_per_MWh_gas)
             # Existenz Zeitreihe
             exists = handle_operation_years(item, years)
 
-            nominal_val = handle_nom_val(item.get("nominal_val", None))
+            segQfu = string_to_list(item["steps_Qfu"])
+            segQth = string_to_list(item["steps_Qth"])
+            segPel = string_to_list(item["steps_Pel"])
+            if not len(segQth) == len(segPel) == len(segQfu):
+                raise Exception("segQth and segPel must be the same length")
 
-            aTAB = cKWK(label=item["label"], eta_th=item["eta_th"], eta_el=item["eta_el"],
-                        exists=exists, group=item.get("group"),
-                        Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists,
-                                   nominal_val=nominal_val, investArgs=invest),
-                        P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
-                                   costsPerFlowHour={e_costs: preiszeitreihen["costsEinspEl"]}),
-                        Q_fu=cFlow(label='Qfu', bus=b_ebs, costsPerFlowHour=FuelcostsEBS)
-                        )
-            TABs.append(aTAB)
-        energy_system.addComponents(*TABs)
+            # Investment
+            item_temp = item.copy()
+            item_temp["nominal_val"] = max(segQth)
+            invest = get_invest_from_excel(item_temp, e_costs, e_funding, years, is_flow=True)
+
+
+            aKWKekt = KWKektB(label=item["label"], exists=exists, group=item.get("group"),
+                              BusFuel=fuel_bus, BusEl=b_strom_einspeisung, BusTh=b_fernwaerme,
+                              segQfu=segQfu, segPel=segPel, segQth=segQth,
+                              costs_fuel=fuel_costs, investArgs = invest
+                              )
+            KWKekts = KWKekts + aKWKekt
+
+        energy_system.addComponents(*KWKekts)
     # </editor-fold>
+
     # <editor-fold desc="Abwaerme HT">
     if "AbwaermeHT" in erz_daten:
         AbwaermeHTs = list()
