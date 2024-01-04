@@ -29,7 +29,8 @@ class flixPostXL(flix_results):
             self.results.pop(key, None)
 
         # add paths of templates
-        directory_templ_excel = os.path.join(os.getcwd(), "flixOpt_excel/resources/ExcelTemplates")
+        directory_templ_excel = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                             "resources/ExcelTemplates")
         self.templ_path_excel_main = os.path.join(directory_templ_excel, "TemplateMain.xlsx")
         self.templ_path_excel_year = os.path.join(directory_templ_excel, "TemplateYear.xlsx")
 
