@@ -483,7 +483,7 @@ class cExcelFcts():
             if resamply_by = "D": ["Tagesmittel", "Minimum (Stunde)", "Maximum (Stunde)"]
             if resamply_by = "Y": ["Jahresmittel", "Minimum (Tagesmittel)", "Maximum (Tagesmittel)"],
         '''
-        df_stromerzeugung = self.calc.to_dataFrame("StromEinsp", "out")
+        df_stromerzeugung = self.calc.to_dataFrame("StromEinsp", "out",invert_Output=True)
         df = rs_in_two_steps(df_stromerzeugung, self.calc.years, resamply_by, "H")
 
         return df
