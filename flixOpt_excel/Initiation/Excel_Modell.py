@@ -215,7 +215,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
-            aKWK = cKWK(label="KWK" + item["label"], exists=exists, group=item.get("group", None),
+            aKWK = cKWK(label=item["label"], exists=exists, group=item.get("group", None),
                         eta_th=item["eta_th"], eta_el=item["eta_el"],
                         Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest),
                         P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
@@ -240,7 +240,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
-            aKessel = cKessel(label="Kessel" + item["label"], exists=exists, group=item.get("group", None),
+            aKessel = cKessel(label=item["label"], exists=exists, group=item.get("group", None),
                               eta=item["eta_th"],
                               Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest),
                               Q_fu=cFlow(label='Qfu', bus=fuel_bus, costsPerFlowHour=fuel_costs)
@@ -254,7 +254,10 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
         EHKs = list()
         for item in erz_daten["EHK"]:
             BusInput = b_strom_bezug
-            fuel_costs = {e_costs: preiszeitreihen["costsBezugEl"] + item.get("ZusatzkostenEnergieInput", 0)}
+            if item.get("ZusatzkostenEnergieInput") is None:
+                fuel_costs = {e_costs: preiszeitreihen["costsBezugEl"]}
+            else:
+                fuel_costs = {e_costs: preiszeitreihen["costsBezugEl"] + item["ZusatzkostenEnergieInput"]}
 
             # Investment
             invest = get_invest_from_excel(item, e_costs, e_funding, years, is_flow=True)
@@ -263,7 +266,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
-            aEHK = cEHK(label="EHK" + item["label"], eta=item["eta_th"],
+            aEHK = cEHK(label=item["label"], eta=item["eta_th"],
                         exists=exists, group=item.get("group", None),
                         Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists,
                                    nominal_val=nominal_val, investArgs=invest),
@@ -276,7 +279,10 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
     if "Waermepumpe" in erz_daten:
         WPs = list()
         for item in erz_daten["Waermepumpe"]:
-            FuelcostsEl = {e_costs: preiszeitreihen["costsBezugEl"] + item.get("ZusatzkostenEnergieInput")}
+            if item.get("ZusatzkostenEnergieInput") is None:
+                FuelcostsEl = {e_costs: preiszeitreihen["costsBezugEl"]}
+            else:
+                FuelcostsEl = {e_costs: preiszeitreihen["costsBezugEl"] + item["ZusatzkostenEnergieInput"]}
 
             # COP-Berechnung
             COP = handle_COP_calculation(item, zeitreihen)
@@ -291,7 +297,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
-            aWP = cHeatPump(label="Waermepumpe" + item["label"], COP=COP,
+            aWP = cHeatPump(label=item["label"], COP=COP,
                             exists=exists, group=item.get("group", None),
                             Q_th=cFlow(label='Qth', bus=b_fernwaerme,
                                        nominal_val=nominal_val, exists=exists,
@@ -307,6 +313,10 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
     if "TAB" in erz_daten:
         TABs = list()
         for item in erz_daten["TAB"]:
+            if item.get("ZusatzkostenEnergieInput") is None:
+                FuelcostsEBS = {e_costs: preiszeitreihen["costsBezugEBS"]}
+            else:
+                FuelcostsEBS = {e_costs: preiszeitreihen["costsBezugEBS"] + item["ZusatzkostenEnergieInput"]}
             # Investment
             invest = get_invest_from_excel(item, e_costs, e_funding, years, is_flow=True)
             # Existenz Zeitreihe
@@ -314,13 +324,13 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
-            aTAB = cKWK(label="TAB" + item["label"], eta_th=item["eta_th"], eta_el=item["eta_el"],
+            aTAB = cKWK(label=item["label"], eta_th=item["eta_th"], eta_el=item["eta_el"],
                         exists=exists, group=item.get("group", None),
                         Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists,
                                    nominal_val=nominal_val, investArgs=invest),
                         P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
                                    costsPerFlowHour={e_costs: preiszeitreihen["costsEinspEl"]}),
-                        Q_fu=cFlow(label='Qfu', bus=b_ebs, costsPerFlowHour={e_costs: preiszeitreihen["costsBezugEBS"]})
+                        Q_fu=cFlow(label='Qfu', bus=b_ebs, costsPerFlowHour={e_costs: FuelcostsEBS})
                         )
             TABs.append(aTAB)
         energy_system.addComponents(*TABs)
@@ -329,8 +339,10 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
     if "AbwaermeHT" in erz_daten:
         AbwaermeHTs = list()
         for item in erz_daten["AbwaermeHT"]:
-            BusInput = b_abwaerme_ht
-            Fuelcosts = {e_costs: item["costsPerFlowHour_abw"]}
+            if item.get("ZusatzkostenEnergieInput") is None:
+                Fuelcosts = {e_costs: preiszeitreihen["costsPerFlowHour_abw"]}
+            else:
+                Fuelcosts = {e_costs: preiszeitreihen["costsPerFlowHour_abw"] + item["ZusatzkostenEnergieInput"]}
 
             # Investment
             invest = get_invest_from_excel(item, e_costs, e_funding, years, is_flow=True)
@@ -344,7 +356,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                          nominal_val=nominal_val, exists=exists,
                          investArgs=invest)
 
-            aAbwaermeHT = cBaseLinearTransformer(label="AbwaermeHT" + item["label"],
+            aAbwaermeHT = cBaseLinearTransformer(label=item["label"],
                                                  exists=exists, group=item.get("group", None),
                                                  inputs=[Qin], outputs=[Qout], factor_Sets=[{Qin: 1, Qout: 1}])
             AbwaermeHTs.append(aAbwaermeHT)
@@ -354,7 +366,10 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
     if "AbwaermeWP" in erz_daten:
         AbwaermeWPs = list()
         for item in erz_daten["AbwaermeWP"]:
-            FuelcostsEl = {e_costs: preiszeitreihen["costsBezugEl"] + item.get("ZusatzkostenEnergieInput", 0)}
+            if item.get("ZusatzkostenEnergieInput") is None:
+                FuelcostsEl = {e_costs: preiszeitreihen["costsBezugEl"]}
+            else:
+                FuelcostsEl = {e_costs: preiszeitreihen["costsBezugEl"] + item["ZusatzkostenEnergieInput"]}
             FuelcostsAbw = {e_costs: item["costsPerFlowHour_abw"]}
 
             COP = handle_COP_calculation(item, zeitreihen)
@@ -369,7 +384,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
-            aAbwaermeWP = cAbwaermeHP(label="AbwaermeWP" + item["label"], COP=COP,
+            aAbwaermeWP = cAbwaermeHP(label=item["label"], COP=COP,
                                       exists=exists, group=item.get("group", None),
                                       Q_th=cFlow(label='Qth', bus=b_fernwaerme,
                                                  nominal_val=nominal_val, exists=exists,
@@ -409,7 +424,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             Invest_flow_out.specificCosts[help_invest] = 1
             # </editor-fold>
 
-            aStorage = cStorage(label="Speicher" + item["label"],
+            aStorage = cStorage(label=item["label"],
                                 exists=exists, group=item.get("group", None),
                                 inFlow=cFlow(label="QthLoad", bus=b_fernwaerme,
                                              nominal_val=nominal_val_flows, exists=exists, investArgs=Invest_flow_in),
@@ -432,7 +447,10 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
         Coolers = list()
         for item in erz_daten["Rueckkuehler"]:
             BusInput = b_strom_bezug
-            Fuelcosts = {e_costs: preiszeitreihen["costsBezugEl"] + item.get("ZusatzkostenEnergieInput", 0)}
+            if item.get("ZusatzkostenEnergieInput") is None:
+                Fuelcosts = {e_costs: preiszeitreihen["costsBezugEl"]}
+            else:
+                Fuelcosts = {e_costs: preiszeitreihen["costsBezugEl"] + item["ZusatzkostenEnergieInput"]}
 
             # Beschränkung Tageszeit: Nur STunde 8-20
             if item['Beschränkung Einsatzzeit']:
@@ -447,7 +465,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
-            aCooler = cCoolingTower(label="Rueckkuehler" + item["label"],
+            aCooler = cCoolingTower(label=item["label"],
                                     specificElectricityDemand=item.get("specificElectricityDemand", None),
                                     exists=exists, group=item.get("group", None),
                                     Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists, max_rel=max_rel,
