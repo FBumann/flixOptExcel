@@ -4,14 +4,14 @@ import random
 import os
 import openpyxl
 import datetime
-
 import pandas as pd
 from pprintpp import pprint as pp
 from typing import Literal, List
 
 from flixOpt_excel.Initiation.HelperFcts_in import *
 from flixOpt.flixComps import *
-from flixOpt_excel.Evaluation import graphics_excel
+from flixOpt_excel.Evaluation.flixPostprocessingXL import cModelVisualizer, cVisuData
+from flixOpt_excel.Evaluation.HelperFcts_post import flixPostXL
 
 
 def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.001, timelimit: int = 3600):
@@ -488,7 +488,6 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
         energy_system.addComponents(*Coolers)
     # </editor-fold>
 
-    from flixOpt_excel.Evaluation.flixPostprocessingXL import cModelVisualizer, cVisuData
     visu_data = cVisuData(es=energy_system)
     model_visualization = cModelVisualizer(visu_data)
     model_visualization.Figure.show()
@@ -586,7 +585,6 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
     # <editor-fold desc="Post-Processing">
     # Start Postprocessing
-    from flixOpt_excel.Evaluation.HelperFcts_post import flixPostXL
     calc1 = flixPostXL(aCalc.nameOfCalc, results_folder=solve_results_path, outputYears=years)
 
     # <editor-fold desc="Print Main Results">
