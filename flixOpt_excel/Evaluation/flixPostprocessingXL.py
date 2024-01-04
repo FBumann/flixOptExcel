@@ -118,9 +118,13 @@ class flixPostXL(flix_results):
             target_value = abs(effect_results["invest"]["sum"])
             calculated_value = abs(effect_results["invest"]["sum_TS"].sum())
             missing_value = abs(calculated_value - target_value)
-            if missing_value / target_value >= 0.00001:  # 0.001% (numeric error)
-                raise Exception(f"Investments missing in {effect_name}. Missing Value is: "
-                                f"{missing_value} [{np.round(missing_value / target_value * 100, decimals=2)} %]")
+            if target_value ==0:
+                if abs(missing_value) >= 0.01:
+                    raise Exception(f"Investments missing in {effect_name}. Missing Value is: {missing_value}")
+            else:
+                if missing_value / target_value >= 0.00001:  # 0.001% (numeric error)
+                    raise Exception(f"Investments missing in {effect_name}. Missing Value is: "
+                                    f"{missing_value} [{np.round(missing_value / target_value * 100, decimals=2)} %]")
 
         # Check if TS of all matches the total costs of all
         for effect_name, effect_results in self.results["globalComp"].items():
@@ -131,9 +135,13 @@ class flixPostXL(flix_results):
             target_value = abs(effect_results["all"]["sum"])
             calculated_value = abs(effect_results["all"]["sum_TS"].sum())
             missing_value = abs(calculated_value - target_value)
-            if missing_value / target_value >= 0.00001:  # 0.001% (numeric error)
-                raise Exception(f"Investments missing in {effect_name}. Missing Value is: "
-                                f"{missing_value} [{np.round(missing_value / target_value * 100, decimals=2)} %]")
+            if target_value == 0:
+                if abs(missing_value) >= 0.01:
+                    raise Exception(f"Investments missing in {effect_name}. Missing Value is: {missing_value}")
+            else:
+                if missing_value / target_value >= 0.00001:  # 0.001% (numeric error)
+                    raise Exception(f"Investments missing in {effect_name}. Missing Value is: "
+                                    f"{missing_value} [{np.round(missing_value / target_value * 100, decimals=2)} %]")
             # </editor-fold>
 
         print ("Aggregated all Investments to their effect absed on their existance sucessfully")
