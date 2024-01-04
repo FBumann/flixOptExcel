@@ -138,21 +138,20 @@ def handle_heating_network(zeitreihen: pd.DataFrame) -> pd.DataFrame:
     ```
 
     """
-    if "TVL_FWN" and "TRL_FWN" not in zeitreihen.keys():  # Berechnung der Vorlauftemperatur und Rücklauftemperatur
+    if "TVL_FWN" in zeitreihen.keys() and "TRL_FWN" not in zeitreihen.keys():
+        raise Exception("If 'TVL_FWN' is given, 'TRL_FWN' also has to be in the Input Dataset")
+    elif "TVL_FWN" not in zeitreihen.keys() and "TRL_FWN" in zeitreihen.keys():
+        raise Exception("If 'TRL_FWN' is given, 'TVL_FWN' also has to be in the Input Dataset")
+    elif "TVL_FWN" and "TRL_FWN" in zeitreihen.keys():
+        print("TVL_FWN and TRL_FWN where included in the input data set")
+    else:
         # Berechnung der Vorlauftemperatur
         zeitreihen["TVL_FWN"] = linear_interpolation_with_bounds(input_data=zeitreihen["Tamb24mean"],
                                                                  lower_bound=-9, upper_bound=11,
                                                                  value_below_bound=125, value_above_bound=105)
+        # TODO: Custom Function?
         zeitreihen["TRL_FWN"] = pd.DataFrame(
-            np.ones_like(zeitreihen["TVL_FWN"]) * 60)  # .applymap(lambda x: 40 if x < 40 else x) #
-
-
-    elif "TVL_FWN" in zeitreihen.keys() and "TRL_FWN" not in zeitreihen.keys():
-        raise Exception("If 'TVL_FWN' is given, 'TRL_FWN' also has to be in the Input Dataset")
-    elif "TVL_FWN" not in zeitreihen.keys() and "TRL_FWN" in zeitreihen.keys():
-        raise Exception("If 'TRL_FWN' is given, 'TVL_FWN' also has to be in the Input Dataset")
-    else:
-        print("TVL_FWN and TRL_FWN where included in the input data set")
+            np.ones_like(zeitreihen["TVL_FWN"]) * 60, index=zeitreihen.index)
 
     if "sinkLossHeat" not in zeitreihen.keys():  # Berechnung der Netzverluste
         k_loss_netz = 0.4640  # in MWh/K        # Vereinfacht, ohne Berücksichtigung einer sich ändernden Netzlänge
