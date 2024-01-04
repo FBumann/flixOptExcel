@@ -3,10 +3,18 @@ calculation:
   no ChosenIndexe: 17520
   calcType: full
   duration:
-    modeling: 6.85
+    modeling: 7.2
     solving: 0
 system_description:
   buses:
+    Wasserstoff:
+      In-Flows:
+      - Qfu:
+          comp: WasserstoffBezug
+      - Wasserstoffpreis:
+          comp: HelperPreise
+      Out-Flows: []
+      class: cBus
     Gas:
       In-Flows:
       - Qfu:
@@ -21,6 +29,12 @@ system_description:
       - Qfu:
           comp: Kessel2
       class: cBus
+    AbwaermeHTBus:
+      In-Flows:
+      - Qout:
+          comp: HelperAbwaermeHT
+      Out-Flows: []
+      class: cBus
     StromBez:
       In-Flows:
       - Pel:
@@ -33,27 +47,13 @@ system_description:
       - Pel:
           comp: WP2
       class: cBus
-    AbwaermeHTBus:
+    StromEinsp:
       In-Flows:
-      - Qout:
-          comp: HelperAbwaermeHT
-      Out-Flows: []
-      class: cBus
-    EBS:
-      In-Flows:
-      - Qfu:
-          comp: EBSBezug
-      - EBSPreis:
-          comp: HelperPreise
-      Out-Flows: []
-      class: cBus
-    Wasserstoff:
-      In-Flows:
-      - Qfu:
-          comp: WasserstoffBezug
-      - Wasserstoffpreis:
-          comp: HelperPreise
-      Out-Flows: []
+      - Pel:
+          comp: KWK1
+      Out-Flows:
+      - Pel:
+          comp: StromEinspeisung
       class: cBus
     AbwaermeBus:
       In-Flows:
@@ -65,19 +65,19 @@ system_description:
       - Qin:
           comp: HelperAbwaermeHT
       class: cBus
+    EBS:
+      In-Flows:
+      - Qfu:
+          comp: EBSBezug
+      - EBSPreis:
+          comp: HelperPreise
+      Out-Flows: []
+      class: cBus
     AbwaermeNTBus:
       In-Flows:
       - Qout:
           comp: HelperAbwaermeNT
       Out-Flows: []
-      class: cBus
-    StromEinsp:
-      In-Flows:
-      - Pel:
-          comp: KWK1
-      Out-Flows:
-      - Pel:
-          comp: StromEinspeisung
       class: cBus
     Fernwaerme:
       In-Flows:
@@ -224,73 +224,101 @@ system_description:
           bus: EBS
       class: cBaseLinearTransformer
   flows:
-  - label: Qfu
-    comp: Kessel1
-    bus: Gas
-    isInputInComp: true
-    group: Kessel
   - label: Pel
-    comp: WP2
+    comp: WP1
     bus: StromBez
     isInputInComp: true
-    group: WP2
-  - label: Gaspreis
-    comp: HelperPreise
-    bus: Gas
-    isInputInComp: false
-  - label: Qfu
-    comp: EBSBezug
-    bus: EBS
-    isInputInComp: false
-  - label: Qout
-    comp: HelperAbwaermeHT
-    bus: AbwaermeHTBus
-    isInputInComp: false
-  - label: Qfu
-    comp: Kessel2
-    bus: Gas
-    isInputInComp: true
-    group: Kessel
-  - label: Qfu
-    comp: KWK1
-    bus: Gas
-    isInputInComp: true
-    group: KWK
-  - label: Qth
-    comp: WP1
-    bus: Fernwaerme
-    isInputInComp: false
     group: WP1
+  - label: Qin
+    comp: HelperAbwaermeHT
+    bus: AbwaermeBus
+    isInputInComp: true
+  - label: Pel
+    comp: KWK1
+    bus: StromEinsp
+    isInputInComp: false
+    group: KWK
   - label: Wasserstoffpreis
     comp: HelperPreise
     bus: Wasserstoff
+    isInputInComp: false
+  - label: Qfu
+    comp: GasBezug
+    bus: Gas
     isInputInComp: false
   - label: Qth
     comp: Waermelast_Netzverluste
     bus: Fernwaerme
     isInputInComp: true
     group: Wärmelast_mit_Verlust
-  - label: Qth
-    comp: Kessel2
-    bus: Fernwaerme
+  - label: Qfu
+    comp: WasserstoffBezug
+    bus: Wasserstoff
     isInputInComp: false
+  - label: Qfu
+    comp: EBSBezug
+    bus: EBS
+    isInputInComp: false
+  - label: Qfu
+    comp: Kessel1
+    bus: Gas
+    isInputInComp: true
     group: Kessel
+  - label: Pel
+    comp: WP2
+    bus: StromBez
+    isInputInComp: true
+    group: WP2
+  - label: Strompreis
+    comp: HelperPreise
+    bus: StromBez
+    isInputInComp: false
+  - label: EBSPreis
+    comp: HelperPreise
+    bus: EBS
+    isInputInComp: false
   - label: Qin
     comp: HelperAbwaermeNT
     bus: AbwaermeBus
     isInputInComp: true
+  - label: Gaspreis
+    comp: HelperPreise
+    bus: Gas
+    isInputInComp: false
+  - label: Qout
+    comp: HelperAbwaermeNT
+    bus: AbwaermeNTBus
+    isInputInComp: false
+  - label: Pel
+    comp: StromEinspeisung
+    bus: StromEinsp
+    isInputInComp: true
+  - label: Qout
+    comp: HelperAbwaermeHT
+    bus: AbwaermeHTBus
+    isInputInComp: false
   - label: Qth
     comp: KWK1
     bus: Fernwaerme
     isInputInComp: false
     group: KWK
-  - label: Pel
-    comp: StromEinspeisung
-    bus: StromEinsp
+  - label: Qth
+    comp: Kessel2
+    bus: Fernwaerme
+    isInputInComp: false
+    group: Kessel
+  - label: Qth
+    comp: Waermelast
+    bus: Fernwaerme
     isInputInComp: true
+    group: Wärmelast_mit_Verlust
   - label: Pel
     comp: StromBezug
     bus: StromBez
+    isInputInComp: false
+  - label: Qabw
+    comp: AbwaermeBezug
+    bus: AbwaermeBus
     isInputInComp: false
   - label: Qth
     comp: WP2
@@ -298,57 +326,29 @@ system_description:
     isInputInComp: false
     group: WP2
   - label: Qth
+    comp: WP1
+    bus: Fernwaerme
+    isInputInComp: false
+    group: WP1
+  - label: Qfu
+    comp: KWK1
+    bus: Gas
+    isInputInComp: true
+    group: KWK
+  - label: Qth
     comp: Kessel1
     bus: Fernwaerme
     isInputInComp: false
     group: Kessel
-  - label: EBSPreis
-    comp: HelperPreise
-    bus: EBS
-    isInputInComp: false
   - label: Qfu
-    comp: GasBezug
+    comp: Kessel2
     bus: Gas
-    isInputInComp: false
-  - label: Qabw
-    comp: AbwaermeBezug
-    bus: AbwaermeBus
-    isInputInComp: false
-  - label: Qin
-    comp: HelperAbwaermeHT
-    bus: AbwaermeBus
     isInputInComp: true
-  - label: Qfu
-    comp: WasserstoffBezug
-    bus: Wasserstoff
-    isInputInComp: false
-  - label: Qout
-    comp: HelperAbwaermeNT
-    bus: AbwaermeNTBus
-    isInputInComp: false
-  - label: Pel
-    comp: KWK1
-    bus: StromEinsp
-    isInputInComp: false
-    group: KWK
-  - label: Pel
-    comp: WP1
-    bus: StromBez
-    isInputInComp: true
-    group: WP1
-  - label: Qth
-    comp: Waermelast
-    bus: Fernwaerme
-    isInputInComp: true
-    group: Wärmelast_mit_Verlust
-  - label: Strompreis
-    comp: HelperPreise
-    bus: StromBez
-    isInputInComp: false
+    group: Kessel
 modboxes:
   duration:
-  - transform2MathModel: 6.57
-    solve: 12.73
+  - transform2MathModel: 6.69
+    solve: 14.45
   info:
   - Solver: cbc
     flixModel:
@@ -370,31 +370,31 @@ modboxes:
     main_results:
       Effects:
         costs [€]:
-          operation: '30282410.0'
-          invest: '8705388.7'
-          sum: '38987799.0'
+          operation: '29944405.0'
+          invest: '8225323.8'
+          sum: '38169729.0'
         funding [€]:
           operation: '0.0'
-          invest: '-0.0'
-          sum: '-0.0'
+          invest: '0.0'
+          sum: '0.0'
         CO2 [t]:
-          operation: '451978.88'
-          invest: '-0.0'
-          sum: '451978.88'
+          operation: '467435.07'
+          invest: '0.0'
+          sum: '467435.07'
         target [i.E.]:
-          operation: '30282410.0'
-          invest: '8705388.7'
-          sum: '38987799.0'
-      penaltyCosts: '-0.0'
-      Result of Obj: 38987798.7
-      lower bound: 38987798.5
+          operation: '29944405.0'
+          invest: '8225323.8'
+          sum: '38169729.0'
+      penaltyCosts: '0.0'
+      Result of Obj: 38169728.8
+      lower bound: 38169729.08
       busesWithExcess: []
       Invest-Decisions:
         invested:
-          WP1__Qth: 20.0
-          Kessel2__Qth: 100.0
           KWK1__Qth: 50.0
-          WP2__Qth: 42.053887
+          Kessel2__Qth: 100.0
+          WP2__Qth: 37.253238
+          WP1__Qth: 20.0
           Kessel1__Qth: 100.0
         not invested: {}
     str_Eqs:
@@ -454,40 +454,40 @@ modboxes:
           featureOn: []
         HelperPreise:
           _self:
-          - 'eq linearFlowRelation_0[0 of 17520]: -1.0* Gaspreis.val[0] + -1.0* Wasserstoffpreis.val[0] + -1.0* Strompreis.val[0] + -1.0* EBSPreis.val[0] = 0'
+          - 'eq linearFlowRelation_0[0 of 17520]: -1.0* Wasserstoffpreis.val[0] + -1.0* Gaspreis.val[0] + -1.0* Strompreis.val[0] + -1.0* EBSPreis.val[0] = 0'
           featureOn: []
       buses:
+        Wasserstoff:
+          _self:
+          - 'eq busBalance[0 of 17520]: 1.0* Qfu.val[0] + 1.0* Wasserstoffpreis.val[0] = 0'
+          featureOn: []
         Gas:
           _self:
           - 'eq busBalance[0 of 17520]: 1.0* Qfu.val[0] + 1.0* Gaspreis.val[0] + -1.0* Qfu.val[0] + -1.0* Qfu.val[0] + -1.0* Qfu.val[0] = 0'
-          featureOn: []
-        StromBez:
-          _self:
-          - 'eq busBalance[0 of 17520]: 1.0* Pel.val[0] + 1.0* Strompreis.val[0] + -1.0* Pel.val[0] + -1.0* Pel.val[0] = 0'
           featureOn: []
         AbwaermeHTBus:
           _self:
           - 'eq busBalance[0 of 17520]: 1.0* Qout.val[0] = 0'
           featureOn: []
-        EBS:
+        StromBez:
           _self:
-          - 'eq busBalance[0 of 17520]: 1.0* Qfu.val[0] + 1.0* EBSPreis.val[0] = 0'
+          - 'eq busBalance[0 of 17520]: 1.0* Pel.val[0] + 1.0* Strompreis.val[0] + -1.0* Pel.val[0] + -1.0* Pel.val[0] = 0'
           featureOn: []
-        Wasserstoff:
+        StromEinsp:
           _self:
-          - 'eq busBalance[0 of 17520]: 1.0* Qfu.val[0] + 1.0* Wasserstoffpreis.val[0] = 0'
+          - 'eq busBalance[0 of 17520]: 1.0* Pel.val[0] + -1.0* Pel.val[0] = 0'
           featureOn: []
         AbwaermeBus:
           _self:
           - 'eq busBalance[0 of 17520]: 1.0* Qabw.val[0] + -1.0* Qin.val[0] + -1.0* Qin.val[0] = 0'
           featureOn: []
+        EBS:
+          _self:
+          - 'eq busBalance[0 of 17520]: 1.0* Qfu.val[0] + 1.0* EBSPreis.val[0] = 0'
+          featureOn: []
         AbwaermeNTBus:
           _self:
           - 'eq busBalance[0 of 17520]: 1.0* Qout.val[0] = 0'
-          featureOn: []
-        StromEinsp:
-          _self:
-          - 'eq busBalance[0 of 17520]: 1.0* Pel.val[0] + -1.0* Pel.val[0] = 0'
           featureOn: []
         Fernwaerme:
           _self:
@@ -505,19 +505,19 @@ modboxes:
           _self: []
           operation:
             _self:
-            - 'eq bilanz[0 of 17520]: -1.0* operation.sum_TS[0] + -1.0* operation.sum_TS[0] + 45.0* operation.sum_TS[0] + 22.9853* Qfu.val[0] + -147.701* Pel.val[0] + 25.9853* Qfu.val[0] + 25.9853* Qfu.val[0] + 147.701* Pel.val[0] + 147.701* Pel.val[0] + 147.701* Strompreis.val[0] + 19.9853* Gaspreis.val[0] + 9999.0* Wasserstoffpreis.val[0] + 9999.0* EBSPreis.val[0] = 0'
+            - 'eq bilanz[0 of 17520]: -1.0* operation.sum_TS[0] + -1.0* operation.sum_TS[0] + 45.0* operation.sum_TS[0] + 17.3672* Qfu.val[0] + -31.3964* Pel.val[0] + 20.3672* Qfu.val[0] + 20.3672* Qfu.val[0] + 31.3964* Pel.val[0] + 31.3964* Pel.val[0] + 31.3964* Strompreis.val[0] + 14.3672* Gaspreis.val[0] + 9999.0* Wasserstoffpreis.val[0] + 9999.0* EBSPreis.val[0] = 0'
             - 'eq sum[0 of 1]: ∑(1.0* operation.sum_TS[0]+..) + -1.0* operation.sum[0] = 0'
             shares:
             - 'eq funding_specificShareToOtherEffects_operation[0 of 1]: -1.0* shares.funding_specificShareToOtherEffects_operation[0] + ∑(-1.0* operation.sum_TS[0]+..) = 0'
             - 'eq CO2_specificShareToOtherEffects_operation[0 of 1]: -1.0* shares.CO2_specificShareToOtherEffects_operation[0] + ∑(45.0* operation.sum_TS[0]+..) = 0'
-            - 'eq KWK1__Qfu_costsPerFlowHour[0 of 1]: -1.0* shares.KWK1__Qfu_costsPerFlowHour[0] + ∑(22.9853* Qfu.val[0]+..) = 0'
-            - 'eq KWK1__Pel_costsPerFlowHour[0 of 1]: -1.0* shares.KWK1__Pel_costsPerFlowHour[0] + ∑(-147.701* Pel.val[0]+..) = 0'
-            - 'eq Kessel1__Qfu_costsPerFlowHour[0 of 1]: -1.0* shares.Kessel1__Qfu_costsPerFlowHour[0] + ∑(25.9853* Qfu.val[0]+..) = 0'
-            - 'eq Kessel2__Qfu_costsPerFlowHour[0 of 1]: -1.0* shares.Kessel2__Qfu_costsPerFlowHour[0] + ∑(25.9853* Qfu.val[0]+..) = 0'
-            - 'eq WP1__Pel_costsPerFlowHour[0 of 1]: -1.0* shares.WP1__Pel_costsPerFlowHour[0] + ∑(147.701* Pel.val[0]+..) = 0'
-            - 'eq WP2__Pel_costsPerFlowHour[0 of 1]: -1.0* shares.WP2__Pel_costsPerFlowHour[0] + ∑(147.701* Pel.val[0]+..) = 0'
-            - 'eq HelperPreise__Strompreis_costsPerFlowHour[0 of 1]: -1.0* shares.HelperPreise__Strompreis_costsPerFlowHour[0] + ∑(147.701* Strompreis.val[0]+..) = 0'
-            - 'eq HelperPreise__Gaspreis_costsPerFlowHour[0 of 1]: -1.0* shares.HelperPreise__Gaspreis_costsPerFlowHour[0] + ∑(19.9853* Gaspreis.val[0]+..) = 0'
+            - 'eq KWK1__Qfu_costsPerFlowHour[0 of 1]: -1.0* shares.KWK1__Qfu_costsPerFlowHour[0] + ∑(17.3672* Qfu.val[0]+..) = 0'
+            - 'eq KWK1__Pel_costsPerFlowHour[0 of 1]: -1.0* shares.KWK1__Pel_costsPerFlowHour[0] + ∑(-31.3964* Pel.val[0]+..) = 0'
+            - 'eq Kessel1__Qfu_costsPerFlowHour[0 of 1]: -1.0* shares.Kessel1__Qfu_costsPerFlowHour[0] + ∑(20.3672* Qfu.val[0]+..) = 0'
+            - 'eq Kessel2__Qfu_costsPerFlowHour[0 of 1]: -1.0* shares.Kessel2__Qfu_costsPerFlowHour[0] + ∑(20.3672* Qfu.val[0]+..) = 0'
+            - 'eq WP1__Pel_costsPerFlowHour[0 of 1]: -1.0* shares.WP1__Pel_costsPerFlowHour[0] + ∑(31.3964* Pel.val[0]+..) = 0'
+            - 'eq WP2__Pel_costsPerFlowHour[0 of 1]: -1.0* shares.WP2__Pel_costsPerFlowHour[0] + ∑(31.3964* Pel.val[0]+..) = 0'
+            - 'eq HelperPreise__Strompreis_costsPerFlowHour[0 of 1]: -1.0* shares.HelperPreise__Strompreis_costsPerFlowHour[0] + ∑(31.3964* Strompreis.val[0]+..) = 0'
+            - 'eq HelperPreise__Gaspreis_costsPerFlowHour[0 of 1]: -1.0* shares.HelperPreise__Gaspreis_costsPerFlowHour[0] + ∑(14.3672* Gaspreis.val[0]+..) = 0'
             - 'eq HelperPreise__Wasserstoffpreis_costsPerFlowHour[0 of 1]: -1.0* shares.HelperPreise__Wasserstoffpreis_costsPerFlowHour[0] + ∑(9999.0* Wasserstoffpreis.val[0]+..) = 0'
             - 'eq HelperPreise__EBSPreis_costsPerFlowHour[0 of 1]: -1.0* shares.HelperPreise__EBSPreis_costsPerFlowHour[0] + ∑(9999.0* EBSPreis.val[0]+..) = 0'
           invest:
@@ -797,14 +797,14 @@ modboxes:
         - 'var TS     EBSPreis.val: len=17520 min = 0, max = 0'
         - 'var        EBSPreis.sumFlowHours: len=1 min = None, max = None'
       buses:
-        Gas: []
-        StromBez: []
-        AbwaermeHTBus: []
-        EBS: []
         Wasserstoff: []
-        AbwaermeBus: []
-        AbwaermeNTBus: []
+        Gas: []
+        AbwaermeHTBus: []
+        StromBez: []
         StromEinsp: []
+        AbwaermeBus: []
+        EBS: []
+        AbwaermeNTBus: []
         Fernwaerme: []
       globals:
       - 'var TS     penalty.sum_TS: len=17520 min = None, max = None'
