@@ -274,7 +274,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
             # TODO: weitere Grafiken
 
-        print("Writing to excel finished - for Jahresdetails Plots")
+    print("Writing to excel finished - for Jahresdetails Plots")
 
 
 class cExcelFcts():
