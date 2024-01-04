@@ -37,9 +37,9 @@ def resample_data(data_frame: Union[pd.DataFrame, np.ndarray], target_years: Lis
     df = pd.DataFrame(data_frame)
     df.index = range(len(df))  # reset index
 
-    if len(df) == 8760 and initial_sampling_rate == "H":
+    if len(df)/8760 == len(target_years) and initial_sampling_rate == "H":
         length_per_year = 8760
-    elif len(df) == 365 and initial_sampling_rate == "D":
+    elif len(df)/365 == len(target_years) and initial_sampling_rate == "D":
         length_per_year = 365
     else:
         raise ValueError("length of dataframe and initial_sampling_rate must match: "
