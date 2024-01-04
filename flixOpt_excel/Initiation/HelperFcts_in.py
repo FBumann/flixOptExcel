@@ -492,7 +492,9 @@ def parse_dict_and_rename_and_filter(original_dict: dict, old_keys: list, new_ke
                 filtered_dict[old_key] not in (None, 0)}
     return new_dict
 
-def handle_fuel_input_switch_excel(item, Preiszeitreihen, bus_erdgas, bus_h2, bus_ebs, costs, CO2, tCO2perMWhGas) -> (cBus, dict):
+def handle_fuel_input_switch_excel(item, Preiszeitreihen,
+                                   bus_erdgas, bus_h2, bus_ebs,
+                                   costs, CO2, tCO2perMWhGas) -> (cBus, dict):
     '''
     This function was written to assign the right bus and fuel cost
     ----------
@@ -501,21 +503,25 @@ def handle_fuel_input_switch_excel(item, Preiszeitreihen, bus_erdgas, bus_h2, bu
     -------
     (fuel_bus: cBus, fuel_costs: dict)
     '''
-
+    if item.get("ZusatzkostenEnergieInput") is None:
+        extra_costs=0
+    else:
+        extra_costs = item["ZusatzkostenEnergieInput"]
     if item["Brennstoff"] == "Erdgas":
         fuel_bus = bus_erdgas
-        fuel_costs = {costs: Preiszeitreihen["costsBezugGas"]+item.get("ZusatzkostenEnergieInput",0), CO2: tCO2perMWhGas}
+        fuel_costs = {costs: Preiszeitreihen["costsBezugGas"] + extra_costs, CO2: tCO2perMWhGas}
     elif item["Brennstoff"] == "Wasserstoff":
         fuel_bus = bus_h2
-        fuel_costs = {costs: Preiszeitreihen["costsBezugH2"]+item.get("ZusatzkostenEnergieInput",0)}
+        fuel_costs = {costs: Preiszeitreihen["costsBezugH2"] + extra_costs}
     elif item["Brennstoff"] == "EBS":
         fuel_bus = bus_ebs
-        fuel_costs = {costs: Preiszeitreihen["costsBezugEBS"]+item.get("ZusatzkostenEnergieInput",0)}
+        fuel_costs = {costs: Preiszeitreihen["costsBezugEBS"] + extra_costs}
     else:
         raise Exception("Brennstoff '" + item["Brennstoff"] + "' is not yet implemented in Function")
 
 
     return fuel_bus, fuel_costs
+
 
 def handle_COP_calculation(item, Zeitreihen, eta=0.5)-> cTSraw:
     '''
