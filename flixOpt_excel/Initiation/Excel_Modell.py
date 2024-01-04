@@ -331,7 +331,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                                    nominal_val=nominal_val, investArgs=invest),
                         P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
                                    costsPerFlowHour={e_costs: preiszeitreihen["costsEinspEl"]}),
-                        Q_fu=cFlow(label='Qfu', bus=b_ebs, costsPerFlowHour={e_costs: FuelcostsEBS})
+                        Q_fu=cFlow(label='Qfu', bus=b_ebs, costsPerFlowHour=FuelcostsEBS)
                         )
             TABs.append(aTAB)
         energy_system.addComponents(*TABs)
