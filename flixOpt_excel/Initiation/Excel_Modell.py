@@ -82,7 +82,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
     check_dataframe_consistency(df=preiszeitreihen, years=years, name_of_df="Preiszeitreihen")
     check_dataframe_consistency(df=zeitreihen, years=years, name_of_df="Zeitreihen")
 
-
+    # </editor-fold>
     # <editor-fold desc="Erzeugerdaten">
     df = pd.read_excel(excel_file_path, sheet_name="Erzeuger", header=None)
     erzeugerdaten = handle_component_data(df)
@@ -284,8 +284,8 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             else:
                 FuelcostsEl = {e_costs: preiszeitreihen["costsBezugEl"] + item["ZusatzkostenEnergieInput"]}
 
-            # COP-Berechnung
             COP = handle_COP_calculation(item, zeitreihen)
+            max_rel = limit_useage(item, zeitreihen)
 
             # Betriebskostenförderung
             fund_op = handle_operation_fund_of_heatpump(item, e_funding, COP, FuelcostsEl[e_costs], 92)
@@ -301,6 +301,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                             exists=exists, group=item.get("group", None),
                             Q_th=cFlow(label='Qth', bus=b_fernwaerme,
                                        nominal_val=nominal_val, exists=exists,
+                                       max_rel=max_rel,
                                        costsPerFlowHour=fund_op,
                                        investArgs=invest),
                             P_el=cFlow(label='Pel', bus=b_strom_bezug, costsPerFlowHour=FuelcostsEl)
@@ -325,7 +326,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
             aTAB = cKWK(label=item["label"], eta_th=item["eta_th"], eta_el=item["eta_el"],
-                        exists=exists, group=item.get("group", None),
+                        exists=exists, group=item.get("group"),
                         Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists,
                                    nominal_val=nominal_val, investArgs=invest),
                         P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
@@ -373,6 +374,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             FuelcostsAbw = {e_costs: item["costsPerFlowHour_abw"]}
 
             COP = handle_COP_calculation(item, zeitreihen)
+            max_rel = limit_useage(item, zeitreihen)
 
             # Betriebskostenförderung
             fund_op = handle_operation_fund_of_heatpump(item, e_funding, COP, FuelcostsEl[e_costs], 92)
@@ -388,6 +390,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                                       exists=exists, group=item.get("group", None),
                                       Q_th=cFlow(label='Qth', bus=b_fernwaerme,
                                                  nominal_val=nominal_val, exists=exists,
+                                                 max_rel=max_rel,
                                                  investArgs=invest,
                                                  costsPerFlowHour=fund_op),
                                       P_el=cFlow(label='Pel', bus=b_strom_bezug, costsPerFlowHour=FuelcostsEl),

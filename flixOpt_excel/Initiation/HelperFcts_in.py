@@ -289,6 +289,7 @@ def relabel_component_data(df:pd.DataFrame):
                     'MindestSCOP': 'MindestSCOP',
                     'COP': 'COP',
                     'Betriebskostenförderung BEW': 'fund_op',
+                    'COP berechnen': 'calc_COP',
 
                     # Abwaerme
                     'Abwärmekosten': 'costsPerFlowHour_abw',
@@ -536,14 +537,45 @@ def handle_COP_calculation(item, Zeitreihen, eta=0.5)-> cTSraw:
     if isinstance(item["COP"], (int, float)):
         COP = item["COP"]
     elif item["COP"] in Zeitreihen.keys():  # Wenn verlinkung zu Temperatur der waermequelle vorgegeben ist
-        COP = createCOPfromTS(TqTS=Zeitreihen[item["COP"]], TsTS=Zeitreihen["TVL_FWN"], eta=eta)
-        Zeitreihen["COP" + "AbwaermeWP" + item["label"]] = COP
+        if item["calc_COP"]:
+            COP = createCOPfromTS(TqTS=Zeitreihen[item["COP"]], TsTS=Zeitreihen["TVL_FWN"], eta=eta)
+        else:
+            COP = Zeitreihen[item["COP"]]
+        Zeitreihen["COP" + item["label"]] = COP
         COP = cTSraw(COP)
     else:
         raise Exception("Verlinkung zwischen COP der WP " + item[
             "label"] + " und der Zeitreihe ist fehlgeschlagen. Prüfe den Namen der Zeitreihe")
 
     return COP
+
+def limit_useage(item, zeitreihen)-> np.ndarray:
+    '''
+    Limit useage of a heat pump by a temperature bound
+    Args:
+        item:
+        zeitreihen:
+
+    Returns:
+        np.ndarray:
+    '''
+
+    if item.get("lower_limit_of_useage") is None:
+        max_rel = 1
+    elif isinstance(item["lower_limit_of_useage"], (int,float)):
+        if item.get("TS_for_limiting_of_useage") is None:
+           raise Exception("If you want to limit the useage of a Heat Pump, you have to specify the TS to calculate the useage")
+        elif item["TS_for_limiting_of_useage"] not in zeitreihen.keys():
+            raise Exception(f"The specified TS {item['TS_for_limiting_of_useage']} is not in 'Zeitreihen'")
+        else:
+            ts_for_limiting = zeitreihen[item["TS_for_limiting_of_useage"]]
+            # Create a new array based on the condition
+            max_rel = (ts_for_limiting >= item["lower_limit_of_useage"]).astype(int)
+    else:
+        raise Exception("if you want to limit the useage of a Heat Pump, choose a number as the lower limit")
+
+    return max_rel
+
 
 def handle_operation_fund_of_heatpump(item, funding, COP, costs_for_electricity, fact=92)-> dict:
     '''
