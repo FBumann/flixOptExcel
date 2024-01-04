@@ -172,7 +172,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
     s_strom_einspeisung = cSink('StromEinspeisung', sink=cFlow('Pel', bus=b_strom_einspeisung))
     energy_system.addComponents(s_strom_einspeisung)
 
-    s_strom_bezug = cSink('StromBezug', sink=cFlow('Pel', bus=b_strom_bezug))
+    s_strom_bezug = cSource('StromBezug', source=cFlow('Pel', bus=b_strom_bezug))
     energy_system.addComponents(s_strom_bezug)
 
     s_gas_bezug = cSource('GasBezug', source=cFlow('Qfu', bus=b_gas))
