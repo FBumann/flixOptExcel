@@ -290,6 +290,8 @@ def relabel_component_data(df:pd.DataFrame):
                     'COP': 'COP',
                     'Betriebskostenförderung BEW': 'fund_op',
                     'COP berechnen': 'calc_COP',
+                    'Zeitreihe für Einsatzbeschränkung': 'TS_for_limiting_of_useage',
+                    'Untergrenze für Einsatz': 'lower_limit_of_useage',
 
                     # Abwaerme
                     'Abwärmekosten': 'costsPerFlowHour_abw',
