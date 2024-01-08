@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import timeit
 import datetime
+import os.path
 from typing import Literal, List, Union
 
 from flixOpt_excel.Evaluation.flixPostprocessingXL import flixPostXL

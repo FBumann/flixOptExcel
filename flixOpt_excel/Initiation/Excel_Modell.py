@@ -4,14 +4,14 @@ import random
 import os
 import openpyxl
 import datetime
-
 import pandas as pd
 from pprintpp import pprint as pp
 from typing import Literal, List
 
 from flixOpt_excel.Initiation.HelperFcts_in import *
 from flixOpt.flixComps import *
-from flixOpt_excel.Evaluation import graphics_excel
+from flixOpt_excel.Evaluation.flixPostprocessingXL import cModelVisualizer, cVisuData
+from flixOpt_excel.Evaluation.HelperFcts_post import flixPostXL
 
 
 def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.001, timelimit: int = 3600):
@@ -151,12 +151,14 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
     energy_system.addEffects(*co2_limit_effects)
 
-    effect_shares_co2 = {e_costs: preiszeitreihen["costsCO2"]}
+    e_co2_fw = cEffectType('CO2FW', 't', 'CO2Emissionen der Fernwaerme')
+
+    effect_shares_co2 = {e_costs: preiszeitreihen["costsCO2"], e_co2_fw: 1}
     effect_shares_co2.update(co2_limiter_shares)
     e_co2 = cEffectType('CO2', 't', 'CO2Emissionen',
                       specificShareToOtherEffects_operation=effect_shares_co2)
 
-    energy_system.addEffects(e_costs, e_funding, e_co2, e_target)
+    energy_system.addEffects(e_costs, e_funding, e_co2, e_co2_fw, e_target)
 
     # </editor-fold>
     # <editor-fold desc="Sinks and Sources">
@@ -215,11 +217,20 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
+            co2_for_el_production = calculate_co2_credit_for_el_production (array_length=len(a_time_series),
+                                                                            t_vl=zeitreihen["TVL_FWN"],
+                                                                            t_rl =zeitreihen["TRL_FWN"],
+                                                                            t_amb=zeitreihen["Tamb"],
+                                                                            n_el=item["eta_el"], n_th=item["eta_th"],
+                                                                            co2_fuel=t_co2_per_MWh_gas)
+
+
             aKWK = cKWK(label=item["label"], exists=exists, group=item.get("group"),
                         eta_th=item["eta_th"], eta_el=item["eta_el"],
                         Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest),
                         P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
-                                   costsPerFlowHour={e_costs: preiszeitreihen["costsEinspEl"]}),
+                                   costsPerFlowHour={e_costs: preiszeitreihen["costsEinspEl"],
+                                                     e_co2_fw:-co2_for_el_production}),
                         Q_fu=cFlow(label='Qfu', bus=fuel_bus, costsPerFlowHour=fuel_costs)
                         )
             KWKs.append(aKWK)
@@ -310,32 +321,39 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
         energy_system.addComponents(*WPs)
     # </editor-fold>
-    # <editor-fold desc="TAB">
-    if "TAB" in erz_daten:
-        TABs = list()
-        for item in erz_daten["TAB"]:
-            if item.get("ZusatzkostenEnergieInput") is None:
-                FuelcostsEBS = {e_costs: preiszeitreihen["costsBezugEBS"]}
-            else:
-                FuelcostsEBS = {e_costs: preiszeitreihen["costsBezugEBS"] + item["ZusatzkostenEnergieInput"]}
-            # Investment
-            invest = get_invest_from_excel(item, e_costs, e_funding, years, is_flow=True)
+    # <editor-fold desc="KWKekt">
+    if "KWKekt" in erz_daten:
+        KWKekts = list()
+        for item in erz_daten["KWKekt"]:
+            # Zuweisung Brennstoff und Netzentgelte
+            # TODO: handle CO2 split for electricity and heat
+            fuel_bus, fuel_costs = handle_fuel_input_switch_excel(item, preiszeitreihen, b_gas, b_wasserstoff, b_ebs, e_costs,
+                                                                  e_co2, t_co2_per_MWh_gas)
             # Existenz Zeitreihe
             exists = handle_operation_years(item, years)
 
-            nominal_val = handle_nom_val(item.get("nominal_val", None))
+            segQfu = string_to_list(item["steps_Qfu"])
+            segQth = string_to_list(item["steps_Qth"])
+            segPel = string_to_list(item["steps_Pel"])
+            if not len(segQth) == len(segPel) == len(segQfu):
+                raise Exception("segQth and segPel must be the same length")
 
-            aTAB = cKWK(label=item["label"], eta_th=item["eta_th"], eta_el=item["eta_el"],
-                        exists=exists, group=item.get("group"),
-                        Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists,
-                                   nominal_val=nominal_val, investArgs=invest),
-                        P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
-                                   costsPerFlowHour={e_costs: preiszeitreihen["costsEinspEl"]}),
-                        Q_fu=cFlow(label='Qfu', bus=b_ebs, costsPerFlowHour=FuelcostsEBS)
-                        )
-            TABs.append(aTAB)
-        energy_system.addComponents(*TABs)
+            # Investment
+            item_temp = item.copy()
+            item_temp["nominal_val"] = max(segQth)
+            invest = get_invest_from_excel(item_temp, e_costs, e_funding, years, is_flow=True)
+
+
+            aKWKekt = KWKektB(label=item["label"], exists=exists, group=item.get("group"),
+                              BusFuel=fuel_bus, BusEl=b_strom_einspeisung, BusTh=b_fernwaerme,
+                              segQfu=segQfu, segPel=segPel, segQth=segQth,
+                              costs_fuel=fuel_costs, investArgs = invest
+                              )
+            KWKekts = KWKekts + aKWKekt
+
+        energy_system.addComponents(*KWKekts)
     # </editor-fold>
+
     # <editor-fold desc="Abwaerme HT">
     if "AbwaermeHT" in erz_daten:
         AbwaermeHTs = list()
@@ -481,7 +499,6 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
         energy_system.addComponents(*Coolers)
     # </editor-fold>
 
-    from flixOpt_excel.Evaluation.flixPostprocessingXL import cModelVisualizer, cVisuData
     visu_data = cVisuData(es=energy_system)
     model_visualization = cModelVisualizer(visu_data)
     model_visualization.Figure.show()
@@ -579,7 +596,6 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
     # <editor-fold desc="Post-Processing">
     # Start Postprocessing
-    from flixOpt_excel.Evaluation.HelperFcts_post import flixPostXL
     calc1 = flixPostXL(aCalc.nameOfCalc, results_folder=solve_results_path, outputYears=years)
 
     # <editor-fold desc="Print Main Results">
@@ -590,9 +606,11 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
     # Write HTML of Model structure to file
     model_visualization.Figure.write_html(os.path.join(calc1.folder, 'Model_structure.html'))
 
-    from flixOpt_excel.Evaluation.graphics_excel import run_excel_graphics_main, run_excel_graphics_years
+    from flixOpt_excel.Evaluation.graphics_excel import (run_excel_graphics_main, run_excel_graphics_years,
+                                                         save_in_n_outputs_per_comp_and_bus_and_effects)
     run_excel_graphics_main(calc1)
     run_excel_graphics_years(calc1)
+    save_in_n_outputs_per_comp_and_bus_and_effects(calc1, buses=True, comps=True, effects=True, resample_by="D")
 
     # </editor-fold>
 

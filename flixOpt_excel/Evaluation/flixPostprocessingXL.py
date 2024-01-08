@@ -144,9 +144,9 @@ class flixPostXL(flix_results):
                                     f"{missing_value} [{np.round(missing_value / target_value * 100, decimals=2)} %]")
             # </editor-fold>
 
-        print ("Aggregated all Investments to their effect absed on their existance sucessfully")
+        print ("Aggregated all Investments to their effect based on their existance sucessfully")
 
-    def _add_group_mapping(self) -> dict:
+    def _add_group_mapping(self):
         mapping = {}
         for flow in self.flows:
             if hasattr(flow, "group"):
@@ -156,7 +156,7 @@ class flixPostXL(flix_results):
                 mapping[comp.label] = comp.group
         self.group_map = mapping
 
-    def _add_color_mapping(self) -> dict:
+    def _add_color_mapping(self):
         # standard color set:
         n_colors = len(self.group_map.keys())
         colors_basic = px.colors.sample_colorscale("viridis", [n / (n_colors - 1) for n in range(n_colors)])

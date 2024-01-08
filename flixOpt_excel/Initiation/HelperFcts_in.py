@@ -4,7 +4,7 @@ import numpy as np
 from typing import List
 
 from flixOpt.flixPlotHelperFcts import *
-
+###############################################################################################################
 # Validation
 def check_dataframe_consistency(df: pd.DataFrame, years: List[int], name_of_df: str = "Unnamed Dataframe"):
     if len(df.index) / 8760 != len(years):
@@ -34,8 +34,22 @@ def is_valid_format(input_string:str):
     else:
         return False
 
+def to_ndarray(value, desired_length: int) -> np.ndarray:
+    if isinstance(value, np.ndarray):
+        ar = value
+    elif isinstance(value, (pd.DataFrame, pd.Series)):
+        ar = np.array(value)
+    elif isinstance(value, (int, float)):
+        ar = np.ones(desired_length) * value
+    else:
+        raise TypeError()
 
+    if len(ar) != desired_length:
+        raise Exception("length check failed")
 
+    return ar
+
+###############################################################################################################
 # calculation of Time Series
 def calculate_hourly_rolling_mean(series: pd.Series, window_size: int = 24) -> pd.Series:
         """
@@ -113,7 +127,6 @@ def linear_interpolation_with_bounds(input_data: pd.Series, lower_bound: float, 
                                ((value_below_bound - value_above_bound) / (lower_bound - upper_bound)) *
                                (input_data.iloc[i] - lower_bound))
     return pd.Series(output_array, index=input_data.index)
-
 
 def handle_heating_network(zeitreihen: pd.DataFrame) -> pd.DataFrame:
     """
@@ -203,7 +216,30 @@ def calculate_relative_capacity_of_storage(item, Zeitreihen, dT_max=65):
 
     return maxReldT
 
+def calculate_co2_credit_for_el_production(array_length, t_vl, t_rl, t_amb, n_el, n_th, co2_fuel):
+    t_vl = to_ndarray(t_vl, array_length) + 273.15
+    t_rl = to_ndarray(t_rl, array_length) + 273.15
+    t_amb = to_ndarray(t_amb, array_length) + 273.15
+    n_el = to_ndarray(n_el, array_length)
+    n_th = to_ndarray(n_th, array_length)
+    co2_fuel = to_ndarray(co2_fuel, array_length)
+    if any(len(arg) != array_length for arg in [t_vl, t_rl, t_amb, n_el, n_th, co2_fuel]):
+        raise Exception("Length check failed")
+    # Berechnung der co2-Gutschrift für die Stromproduktion nach der Carnot-Methode
+    t_s = (t_vl - t_rl) / np.log((t_vl / t_rl))  # Temperatur Nutzwärme
+    n_carnot = 1 - (t_amb / t_s)
 
+    a_el = (1 * n_el) / (n_el + n_carnot * n_th)
+    f_el = a_el / n_el
+    co2_el = f_el * co2_fuel
+
+    # a_th = (n_carnot * n_th) / (n_el + n_carnot * n_th)
+    # f_th = a_th/n_th
+    # co2_th = f_th * co2_fuel
+
+    return co2_el
+
+###############################################################################################################
 # Reading of the excel sheet
 def handle_component_data(df:pd.DataFrame)-> dict:
     '''
@@ -215,7 +251,7 @@ def handle_component_data(df:pd.DataFrame)-> dict:
 
     # <editor-fold desc="Check for invalid Comp types">
     Erzeugertypen = ('KWK', 'Kessel', 'Speicher', 'EHK', 'Waermepumpe', 'AbwaermeHT', 'AbwaermeWP', 'Rueckkuehler',
-                     'TAB')  # DONT CHANGE!!!
+                     'KWKekt')  # DONT CHANGE!!!
     print("Accepted types of Components:")
     print(Erzeugertypen)
     for typ in df.iloc[0, :].dropna():
@@ -285,6 +321,11 @@ def relabel_component_data(df:pd.DataFrame):
                     'Startjahr': 'Startjahr',
                     'Endjahr': 'Endjahr',
 
+                    # KWKekt
+                    'Thermische Leistung (Stützpunkte)': 'steps_Qth',
+                    'Elektrische Leistung (Stützpunkte)': 'steps_Pel',
+                    'Brennstoff Leistung (Stützpunkte)': 'steps_Qfu',
+
                     # Wärmepumpen
                     'MindestSCOP': 'MindestSCOP',
                     'COP': 'COP',
@@ -322,7 +363,7 @@ def relabel_component_data(df:pd.DataFrame):
 
     return df
 
-
+###############################################################################################################
 # Handling Component data
 def get_invest_from_excel(item: dict, costs_effect: cEffectType, funding_effect: cEffectType, outputYears,
                           is_flow:bool=False, is_storage:bool=False, is_flow_of_storage:bool=False) -> cInvestArgs:
@@ -682,3 +723,17 @@ def repeat_elements_of_list(original_list:[int], repetitions:int=8760) -> np.nda
     if original_list is None: return None
     repeated_array = [item for item in original_list for _ in range(repetitions)]
     return repeated_array
+
+
+def string_to_list(delimited_string: str, delimiter: str = '-') -> list:
+    """
+    Convert a string of hyphen-separated numbers to a list of floats.
+
+    Parameters:
+    - delimited_string (str): The input string containing delimited numbers.
+    - delimiter (str): The delimiter
+
+    Returns:
+    - list: A list of floats representing the numbers in the input string.
+    """
+    return list(map(float, delimited_string.split(delimiter)))
