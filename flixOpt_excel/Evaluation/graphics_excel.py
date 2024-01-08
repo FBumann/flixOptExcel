@@ -276,6 +276,40 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
     print("Writing to excel finished - for Jahresdetails Plots")
 
+def save_in_n_outputs_per_comp_and_bus(calc: flixPostXL, custom_output_file_path: str = "default"):
+    '''
+    Save the in- and out-flows of every Comp and every bus to a excel file
+    Parameters
+    ----------
+    calc: flixPostXL
+    custom_output_file_path: str
+
+    Returns
+    -------
+
+    '''
+    print("Additional Data to Excel")
+
+    if custom_output_file_path == "default":
+        output_file_path = calc.folder
+    else:
+        output_file_path = custom_output_file_path
+
+    filename = f"Zusatzinfo Flows-{calc.infos['calculation']['name']}.xlsx"
+    path_excel_main = os.path.join(output_file_path, filename)
+
+    data = {}
+    for bus in calc.buses:
+        data[bus] = calc.to_dataFrame(busOrComp=bus, direction="inout",invert_Output=True)
+
+    for comp in calc.comps:
+        data[comp] = calc.to_dataFrame(busOrComp=comp, direction="inout",invert_Output=False)
+
+    with pd.ExcelWriter(path_excel_main, mode="w", engine="openpyxl") as writer:
+        for key, item in data.items():
+            item.to_excel(writer, index=True, sheet_name=key)
+
+
 
 class cExcelFcts():
     def __init__(self, calc: flixPostXL):
