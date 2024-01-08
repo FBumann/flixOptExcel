@@ -144,7 +144,7 @@ class flixPostXL(flix_results):
                                     f"{missing_value} [{np.round(missing_value / target_value * 100, decimals=2)} %]")
             # </editor-fold>
 
-        print ("Aggregated all Investments to their effect absed on their existance sucessfully")
+        print ("Aggregated all Investments to their effect based on their existance sucessfully")
 
     def _add_group_mapping(self) -> dict:
         mapping = {}
