@@ -276,7 +276,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
     print("Writing to excel finished - for Jahresdetails Plots")
 
-def save_in_n_outputs_per_comp_and_bus(calc: flixPostXL, custom_output_file_path: str = "default"):
+def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL, custom_output_file_path: str = "default"):
     '''
     Save the in- and out-flows of every Comp and every bus to a excel file
     Parameters
@@ -295,8 +295,8 @@ def save_in_n_outputs_per_comp_and_bus(calc: flixPostXL, custom_output_file_path
     else:
         output_file_path = custom_output_file_path
 
-    filename = f"Zusatzinfo Flows-{calc.infos['calculation']['name']}.xlsx"
-    path_excel_main = os.path.join(output_file_path, filename)
+    filename = f"Zusatzinfo-{calc.infos['calculation']['name']}.xlsx"
+    path_excel = os.path.join(output_file_path, filename)
 
     data = {}
     for bus in calc.buses:
@@ -305,7 +305,21 @@ def save_in_n_outputs_per_comp_and_bus(calc: flixPostXL, custom_output_file_path
     for comp in calc.comps:
         data[comp] = calc.to_dataFrame(busOrComp=comp, direction="inout",invert_Output=False)
 
-    with pd.ExcelWriter(path_excel_main, mode="w", engine="openpyxl") as writer:
+
+    # Effects
+    data_effects = pd.DataFrame()
+    for effect_name, effect in calc.results["globalComp"].items():
+        if effect_name == "penalty":
+            continue
+        data_effects[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="all", as_TS=True,shares=False,)
+
+    df_effects = resample_data(data_frame=data_effects,target_years=calc.years, resampling_by="H",resampling_method="mean")
+
+
+    # Write to excel
+    with pd.ExcelWriter(path_excel, mode="w", engine="openpyxl") as writer:
+        df_effects.to_excel(writer, index=True, sheet_name="Effects")
+
         for key, item in data.items():
             item.to_excel(writer, index=True, sheet_name=key)
 

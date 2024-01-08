@@ -34,8 +34,22 @@ def is_valid_format(input_string:str):
     else:
         return False
 
+def to_ndarray(value, desired_length: int) -> np.ndarray:
+    if isinstance(value, np.ndarray):
+        ar = value
+    elif isinstance(value, (pd.DataFrame, pd.Series)):
+        ar = np.array(value)
+    elif isinstance(value, (int, float)):
+        ar = np.ones(desired_length) * value
+    else:
+        raise TypeError()
 
+    if len(ar) != desired_length:
+        raise Exception("length check failed")
 
+    return ar
+
+###############################################################################################################
 # calculation of Time Series
 def calculate_hourly_rolling_mean(series: pd.Series, window_size: int = 24) -> pd.Series:
         """
@@ -202,7 +216,30 @@ def calculate_relative_capacity_of_storage(item, Zeitreihen, dT_max=65):
 
     return maxReldT
 
+def calculate_co2_credit_for_el_production(array_length, t_vl, t_rl, t_amb, n_el, n_th, co2_fuel):
+    t_vl = to_ndarray(t_vl, array_length) + 273.15
+    t_rl = to_ndarray(t_rl, array_length) + 273.15
+    t_amb = to_ndarray(t_amb, array_length) + 273.15
+    n_el = to_ndarray(n_el, array_length)
+    n_th = to_ndarray(n_th, array_length)
+    co2_fuel = to_ndarray(co2_fuel, array_length)
+    if any(len(arg) != array_length for arg in [t_vl, t_rl, t_amb, n_el, n_th, co2_fuel]):
+        raise Exception("Length check failed")
+    # Berechnung der co2-Gutschrift für die Stromproduktion nach der Carnot-Methode
+    t_s = (t_vl - t_rl) / np.log((t_vl / t_rl))  # Temperatur Nutzwärme
+    n_carnot = 1 - (t_amb / t_s)
 
+    a_el = (1 * n_el) / (n_el + n_carnot * n_th)
+    f_el = a_el / n_el
+    co2_el = f_el * co2_fuel
+
+    # a_th = (n_carnot * n_th) / (n_el + n_carnot * n_th)
+    # f_th = a_th/n_th
+    # co2_th = f_th * co2_fuel
+
+    return co2_el
+
+###############################################################################################################
 # Reading of the excel sheet
 def handle_component_data(df:pd.DataFrame)-> dict:
     '''
