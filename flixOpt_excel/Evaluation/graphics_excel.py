@@ -1,11 +1,12 @@
 import pandas as pd
 import numpy as np
 import os.path
-import openpyxl
+from openpyxl import load_workbook
+from openpyxl.chart import BarChart, Reference
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 from flixOpt_excel.Evaluation.flixPostprocessingXL import flixPostXL
-from flixOpt_excel.Evaluation.HelperFcts_post import resample_data, rs_in_two_steps, getFuelCosts, reorder_columns, \
-    RuntimeTracker
+from flixOpt_excel.Evaluation.HelperFcts_post import resample_data, rs_in_two_steps, getFuelCosts, reorder_columns
 
 
 def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "default"):
@@ -54,7 +55,7 @@ def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "de
     else:
         output_file_path = custom_output_file_path
 
-    wb = openpyxl.load_workbook(calc.templ_path_excel_main)
+    wb = load_workbook(calc.templ_path_excel_main)
     filename = f"Jahresübersicht-{calc.infos['calculation']['name']}.xlsx"
     path_excel_main = os.path.join(output_file_path, filename)
     wb.save(path_excel_main)
@@ -194,7 +195,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
     print("Computation of data finished")
 
     for index, year in enumerate(excel.calc.years):
-        wb = openpyxl.load_workbook(calc.templ_path_excel_year)
+        wb = load_workbook(calc.templ_path_excel_year)
         filename = f"Jahr_{year}-{excel.calc.infos['calculation']['name']}.xlsx"
         path_excel_year = os.path.join(output_file_path, filename)
         wb.save(path_excel_year)
@@ -276,18 +277,37 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
     print("Writing to excel finished - for Jahresdetails Plots")
 
-def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL, custom_output_file_path: str = "default"):
-    '''
-    Save the in- and out-flows of every Comp and every bus to a excel file
+def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
+                                                   buses:bool=True, comps:bool=True, effects:bool = True,
+                                                   resample_by:str="D", custom_output_file_path: str = "default"):
+    """
+    Save the in- and out-flows of every Comp and every bus to an Excel file.
+
     Parameters
     ----------
-    calc: flixPostXL
-    custom_output_file_path: str
+    calc : flixPostXL
+        The flixPostXL object containing the calculation results.
+    buses : bool
+        If True, save data for each bus, by default True.
+    comps : bool
+        If True, save data for each Comp, by default True.
+    effects : bool
+        If True, save summarized effects data, by default True.
+    resample_by : str, optional
+        The time frequency for resampling data (e.g., 'D' for daily), by default "D".
+    custom_output_file_path : str, optional
+        Custom path to save the Excel file
 
     Returns
     -------
+    None
 
-    '''
+    Notes
+    -----
+    The function saves in- and out-flows data to an Excel file with separate sheets for every bus and comp.
+    Effects are combined into one sheet
+
+    """
     print("Additional Data to Excel")
 
     if custom_output_file_path == "default":
@@ -298,37 +318,115 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL, custom_outp
     filename = f"Zusatzinfo-{calc.infos['calculation']['name']}.xlsx"
     path_excel = os.path.join(output_file_path, filename)
 
-    data = {}
-    for bus in calc.buses:
-        data[bus] = calc.to_dataFrame(busOrComp=bus, direction="inout",invert_Output=True)
+    if effects:
+        df_effects_sum = pd.DataFrame()
+        for effect_name, effect in calc.results["globalComp"].items():
+            if effect_name == "penalty":
+                continue
+            df_effects_sum[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="all", as_TS=True,shares=False)
+        df_effects_sum = resample_data(data_frame=df_effects_sum,target_years=calc.years, resampling_by=resample_by,resampling_method="sum")
 
-    for comp in calc.comps:
-        data[comp] = calc.to_dataFrame(busOrComp=comp, direction="inout",invert_Output=False)
-
-
-    # Effects
-    df_effects_sum = pd.DataFrame()
-    for effect_name, effect in calc.results["globalComp"].items():
-        if effect_name == "penalty":
-            continue
-        df_effects_sum[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="all", as_TS=True,shares=False)
-    df_effects_sum = resample_data(data_frame=df_effects_sum,target_years=calc.years, resampling_by="H",resampling_method="mean")
-
-    df_effects_op = pd.DataFrame()
-    for effect_name, effect in calc.results["globalComp"].items():
-        if effect_name == "penalty":
-            continue
-        df_effects_op[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="operation", as_TS=True,shares=False)
-    df_effects_op = resample_data(data_frame=df_effects_op,target_years=calc.years, resampling_by="H",resampling_method="mean")
+        df_to_excel_w_chart(df_effects_sum, path_excel, "Effects_SUM", "See Legend", "Time")
 
 
-    # Write to excel
-    with pd.ExcelWriter(path_excel, mode="w", engine="openpyxl") as writer:
-        df_effects_sum.to_excel(writer, index=True, sheet_name="Effects")
+        df_effects_op = pd.DataFrame()
+        for effect_name, effect in calc.results["globalComp"].items():
+            if effect_name == "penalty":
+                continue
+            df_effects_op[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="operation", as_TS=True,shares=False)
+        df_effects_op = resample_data(data_frame=df_effects_op,target_years=calc.years, resampling_by=resample_by,resampling_method="sum")
 
-        for key, item in data.items():
-            item.to_excel(writer, index=True, sheet_name=key)
+        df_to_excel_w_chart(df_effects_op, path_excel, "Effects_OP", "diverse", "Time")
 
+
+    if buses:
+        for bus in calc.buses:
+            data = calc.to_dataFrame(busOrComp=bus, direction="inout",invert_Output=True)*-1
+            data = resample_data(data_frame=data, target_years=calc.years,
+                                 resampling_by=resample_by, resampling_method="mean")
+            df_to_excel_w_chart(data, path_excel, "bus "+bus, "MW", "Zeit")
+    if comps:
+        for comp in calc.comps:
+            data = calc.to_dataFrame(busOrComp=comp, direction="inout",invert_Output=True)*-1
+            data = resample_data(data_frame=data, target_years=calc.years,
+                                 resampling_by=resample_by, resampling_method="mean")
+            df_to_excel_w_chart(data, path_excel, "comp "+comp, "MW", "Zeit")
+
+def df_to_excel_w_chart(df: pd.DataFrame, filepath: str, title: str, ylabel: str, xlabel: str):
+    """
+    Write DataFrame to an Excel file with a stacked bar chart.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame containing the data to be written.
+    filepath : str
+        The path to the Excel file. If the file doesn't exist, a new one will be created.
+    title : str
+        The title of the sheet and chart.
+    ylabel : str
+        The label for the y-axis of the chart.
+    xlabel : str
+        The label for the x-axis of the chart.
+
+    Returns
+    -------
+    None
+
+    Notes
+    -----
+    This function writes the provided DataFrame to an Excel file and adds a stacked bar chart to a new sheet in the workbook.
+    If the sheet with the given title already exists, it is removed before adding the new sheet.
+    The stacked bar chart is created based on the DataFrame structure, with columns as categories and rows as data points.
+    The chart is positioned at cell "D4" in the sheet.
+
+    """
+    try:
+        wb = load_workbook(filepath)
+    except FileNotFoundError:
+        template_path = os.path.join( os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                         "resources", "ExcelTemplates", "Template_blanco.xlsx")
+        wb = load_workbook(template_path)
+
+    # Check if the sheet already exists
+    if title in wb.sheetnames:
+        sheet = wb[title]
+        wb.remove(sheet)
+
+    # Add the sheet to the workbook
+    sheet = wb.create_sheet(title)
+
+    # Remove the index and save it as a column
+    df = df.reset_index()
+    # Write the data starting from the second row
+    for r in dataframe_to_rows(df, index=False, header=True):
+        sheet.append(r)
+
+    # Create a stacked bar chart
+    chart = BarChart()
+    data = Reference(sheet, min_col=2, min_row=1, max_col=df.shape[1], max_row=df.shape[0] + 1)
+    labels = Reference(sheet, min_col=1, min_row=2, max_row=df.shape[0] + 1)
+
+    chart.title = title
+    chart.y_axis.title = ylabel
+    chart.x_axis.title = xlabel
+    # Set the width and height of the chart (in pixels)
+    chart.width = 30
+    chart.height = 15
+
+    chart.add_data(data, titles_from_data=True)
+    chart.set_categories(labels)
+    # Stacked bar plot
+    chart.type = "col"
+    chart.grouping = "stacked"
+    chart.overlap = 100
+    chart.gapWidth = 0  # Adjust the gap between bars (e.g., set gapWidth to 0%)
+
+    # Add the chart to the sheet
+    sheet.add_chart(chart, "D4")  # Adjust the position as needed
+
+    # Save the workbook
+    wb.save(filepath)
 
 
 class cExcelFcts():

@@ -610,7 +610,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                                                          save_in_n_outputs_per_comp_and_bus_and_effects)
     run_excel_graphics_main(calc1)
     run_excel_graphics_years(calc1)
-    save_in_n_outputs_per_comp_and_bus_and_effects(calc1)
+    save_in_n_outputs_per_comp_and_bus_and_effects(calc1, buses=True, comps=True, effects=True, resample_by="D")
 
     # </editor-fold>
 
