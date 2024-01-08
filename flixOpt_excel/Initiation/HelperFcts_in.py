@@ -4,7 +4,7 @@ import numpy as np
 from typing import List
 
 from flixOpt.flixPlotHelperFcts import *
-
+###############################################################################################################
 # Validation
 def check_dataframe_consistency(df: pd.DataFrame, years: List[int], name_of_df: str = "Unnamed Dataframe"):
     if len(df.index) / 8760 != len(years):
@@ -363,7 +363,7 @@ def relabel_component_data(df:pd.DataFrame):
 
     return df
 
-
+###############################################################################################################
 # Handling Component data
 def get_invest_from_excel(item: dict, costs_effect: cEffectType, funding_effect: cEffectType, outputYears,
                           is_flow:bool=False, is_storage:bool=False, is_flow_of_storage:bool=False) -> cInvestArgs:
