@@ -307,18 +307,24 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL, custom_outp
 
 
     # Effects
-    data_effects = pd.DataFrame()
+    df_effects_sum = pd.DataFrame()
     for effect_name, effect in calc.results["globalComp"].items():
         if effect_name == "penalty":
             continue
-        data_effects[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="all", as_TS=True,shares=False,)
+        df_effects_sum[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="all", as_TS=True,shares=False)
+    df_effects_sum = resample_data(data_frame=df_effects_sum,target_years=calc.years, resampling_by="H",resampling_method="mean")
 
-    df_effects = resample_data(data_frame=data_effects,target_years=calc.years, resampling_by="H",resampling_method="mean")
+    df_effects_op = pd.DataFrame()
+    for effect_name, effect in calc.results["globalComp"].items():
+        if effect_name == "penalty":
+            continue
+        df_effects_op[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="operation", as_TS=True,shares=False)
+    df_effects_op = resample_data(data_frame=df_effects_op,target_years=calc.years, resampling_by="H",resampling_method="mean")
 
 
     # Write to excel
     with pd.ExcelWriter(path_excel, mode="w", engine="openpyxl") as writer:
-        df_effects.to_excel(writer, index=True, sheet_name="Effects")
+        df_effects_sum.to_excel(writer, index=True, sheet_name="Effects")
 
         for key, item in data.items():
             item.to_excel(writer, index=True, sheet_name=key)
