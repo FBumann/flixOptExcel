@@ -483,7 +483,7 @@ class cExcelFcts():
         '''
         heat = self.calc.to_dataFrame("Fernwaerme", "inout", invert_Output=False)["Waermelast__Qth"]
 
-        CO2 = pd.DataFrame(self.calc.get_effect_results(effect_name="CO2", origin="operation", as_TS=True),
+        CO2 = pd.DataFrame(self.calc.get_effect_results(effect_name="CO2FW", origin="operation", as_TS=True),
                            index=self.calc.timeSeries)
 
         CO2_per_increment = resample_data(CO2, self.calc.years, resamply_by, rs_method).iloc[:, 0]

@@ -151,12 +151,14 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
     energy_system.addEffects(*co2_limit_effects)
 
-    effect_shares_co2 = {e_costs: preiszeitreihen["costsCO2"]}
+    e_co2_fw = cEffectType('CO2FW', 't', 'CO2Emissionen der Fernwaerme')
+
+    effect_shares_co2 = {e_costs: preiszeitreihen["costsCO2"], e_co2_fw: 1}
     effect_shares_co2.update(co2_limiter_shares)
     e_co2 = cEffectType('CO2', 't', 'CO2Emissionen',
                       specificShareToOtherEffects_operation=effect_shares_co2)
 
-    energy_system.addEffects(e_costs, e_funding, e_co2, e_target)
+    energy_system.addEffects(e_costs, e_funding, e_co2, e_co2_fw, e_target)
 
     # </editor-fold>
     # <editor-fold desc="Sinks and Sources">
@@ -215,11 +217,20 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             nominal_val = handle_nom_val(item.get("nominal_val", None))
 
+            co2_for_el_production = calculate_co2_credit_for_el_production (array_length=len(a_time_series),
+                                                                            t_vl=zeitreihen["TVL_FWN"],
+                                                                            t_rl =zeitreihen["TRL_FWN"],
+                                                                            t_amb=zeitreihen["Tamb"],
+                                                                            n_el=item["eta_el"], n_th=item["eta_th"],
+                                                                            co2_fuel=t_co2_per_MWh_gas)
+
+
             aKWK = cKWK(label=item["label"], exists=exists, group=item.get("group"),
                         eta_th=item["eta_th"], eta_el=item["eta_el"],
                         Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest),
                         P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
-                                   costsPerFlowHour={e_costs: preiszeitreihen["costsEinspEl"]}),
+                                   costsPerFlowHour={e_costs: preiszeitreihen["costsEinspEl"],
+                                                     e_co2_fw:-co2_for_el_production}),
                         Q_fu=cFlow(label='Qfu', bus=fuel_bus, costsPerFlowHour=fuel_costs)
                         )
             KWKs.append(aKWK)
