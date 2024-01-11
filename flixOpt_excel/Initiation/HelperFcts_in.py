@@ -324,7 +324,7 @@ def relabel_component_data(df:pd.DataFrame):
                     # KWKekt
                     'Thermische Leistung (Stützpunkte)': 'steps_Qth',
                     'Elektrische Leistung (Stützpunkte)': 'steps_Pel',
-                    'Brennstoff Leistung (Stützpunkte)': 'steps_Qfu',
+                    'Brennstoff Leistung': 'nom_val_Qfu',
 
                     # Wärmepumpen
                     'MindestSCOP': 'MindestSCOP',
