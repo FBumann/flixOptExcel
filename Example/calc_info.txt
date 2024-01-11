@@ -1,0 +1,1 @@
+pathAnalysis='/Users/felix/Documents/Dokumente - eigene/Arbeit_SE_Trainee/Repositories/flixOpt_excel_repo/Testing/results/Example', nameOfCalc='2024-01-04_Example_cbc', results_folder='/Users/felix/Documents/Dokumente - eigene/Arbeit_SE_Trainee/Repositories/flixOpt_excel_repo/Testing/results/Example/SolveResults', outputYears='[2025, 2030]'
