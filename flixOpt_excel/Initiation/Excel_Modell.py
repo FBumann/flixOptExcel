@@ -327,27 +327,29 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
         for item in erz_daten["KWKekt"]:
             # Zuweisung Brennstoff und Netzentgelte
             # TODO: handle CO2 split for electricity and heat
-            fuel_bus, fuel_costs = handle_fuel_input_switch_excel(item, preiszeitreihen, b_gas, b_wasserstoff, b_ebs, e_costs,
+            fuel_bus, fuel_costs = handle_fuel_input_switch_excel(item, preiszeitreihen, b_gas, b_wasserstoff, b_ebs,
+                                                                  e_costs,
                                                                   e_co2, t_co2_per_MWh_gas)
             # Existenz Zeitreihe
             exists = handle_operation_years(item, years)
 
-            segQfu = string_to_list(item["steps_Qfu"])
+            nominal_val_Qfu = item["nom_val_Qfu"]
             segQth = string_to_list(item["steps_Qth"])
             segPel = string_to_list(item["steps_Pel"])
-            if not len(segQth) == len(segPel) == len(segQfu):
+            if not len(segQth) == len(segPel):
                 raise Exception("segQth and segPel must be the same length")
 
             # Investment
             item_temp = item.copy()
-            item_temp["nominal_val"] = max(segQth)
+            item_temp["nominal_val"] = nominal_val_Qfu
             invest = get_invest_from_excel(item_temp, e_costs, e_funding, years, is_flow=True)
 
-
-            aKWKekt = KWKektB(label=item["label"], exists=exists, group=item.get("group"),
-                              BusFuel=fuel_bus, BusEl=b_strom_einspeisung, BusTh=b_fernwaerme,
-                              segQfu=segQfu, segPel=segPel, segQth=segQth,
-                              costs_fuel=fuel_costs, investArgs = invest
+            aKWKekt = KWKektB(label=item["label"], BusFuel=fuel_bus, BusEl=b_strom_einspeisung, BusTh=b_fernwaerme,
+                              exists=exists, group=item.get("group"),
+                              nominal_val_Qfu=nominal_val_Qfu, segPel=segPel, segQth=segQth,
+                              costsPerFlowHour_fuel=fuel_costs,
+                              costsPerFlowHour_el={e_costs: preiszeitreihen["costsEinspEl"]},
+                              investArgs=invest
                               )
             KWKekts = KWKekts + aKWKekt
 
