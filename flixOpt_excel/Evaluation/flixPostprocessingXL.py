@@ -323,6 +323,7 @@ class flixPostXL(flix_results):
         # For Storages
         if storages:
             for comp_label in self.infos_system["components"].keys():
+                #TODO: Add "if cStorage"?
                 comp = self.results[comp_label]
                 invest_data = comp.get("invest", None)
                 if invest_data is None: continue
@@ -330,7 +331,7 @@ class flixPostXL(flix_results):
                 if used_capacity is None: continue
 
                 if actual_storage_capacity:
-                    used_capacity = used_capacity * comp["max_rel_chargeState"]
+                    used_capacity = used_capacity * comp["max_rel_chargeState"][:-1]
 
                 if comp_label in invest_all: raise Exception(f"{comp_label} already in 'invest_all' dictionary")
                 invest_all[comp_label] = used_capacity

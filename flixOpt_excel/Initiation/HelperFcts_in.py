@@ -166,7 +166,7 @@ def handle_heating_network(zeitreihen: pd.DataFrame) -> pd.DataFrame:
         zeitreihen["TRL_FWN"] = pd.DataFrame(
             np.ones_like(zeitreihen["TVL_FWN"]) * 60, index=zeitreihen.index)
 
-    if "sinkLossHeat" not in zeitreihen.keys():  # Berechnung der Netzverluste
+    if "SinkLossHeat" not in zeitreihen.keys():  # Berechnung der Netzverluste
         k_loss_netz = 0.4640  # in MWh/K        # Vereinfacht, ohne Berücksichtigung einer sich ändernden Netzlänge
         zeitreihen["SinkLossHeat"] = k_loss_netz * (
                 (zeitreihen["TVL_FWN"] + zeitreihen["TRL_FWN"]) / 2 - zeitreihen["Tamb"])
