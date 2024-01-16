@@ -333,6 +333,7 @@ def relabel_component_data(df:pd.DataFrame):
                     'COP berechnen': 'calc_COP',
                     'Zeitreihe für Einsatzbeschränkung': 'TS_for_limiting_of_useage',
                     'Untergrenze für Einsatz': 'lower_limit_of_useage',
+                    'Beschränkung der Leistung': 'max_rel_th',
 
                     # Abwaerme
                     'Abwärmekosten': 'costsPerFlowHour_abw',
@@ -617,7 +618,7 @@ def limit_useage(item, zeitreihen)-> np.ndarray:
     else:
         raise Exception("if you want to limit the useage of a Heat Pump, choose a number as the lower limit")
 
-    return max_rel
+    return max_rel.values
 
 
 def handle_operation_fund_of_heatpump(item, funding, COP, costs_for_electricity, fact=92)-> dict:

@@ -296,7 +296,11 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                 FuelcostsEl = {e_costs: preiszeitreihen["costsBezugEl"] + item["ZusatzkostenEnergieInput"]}
 
             COP = handle_COP_calculation(item, zeitreihen)
-            max_rel = limit_useage(item, zeitreihen)
+            max_rel_1 = limit_useage(item, zeitreihen)
+            max_rel_2 = zeitreihen[item['max_rel_th']].values
+            if not np.all((max_rel_2 >= 0) & (max_rel_2 <= 1)):
+                raise Exception(f"Error in {item['label']}:Only use values between 0 and 1 to restrict the available Power")
+            max_rel = max_rel_1 * max_rel_2
 
             # Betriebskostenförderung
             fund_op = handle_operation_fund_of_heatpump(item, e_funding, COP, FuelcostsEl[e_costs], 92)
