@@ -352,6 +352,7 @@ def relabel_component_data(df:pd.DataFrame):
                     # Rueckkuehler
                     'Strombedarf': 'specificElectricityDemand',
                     'KostenProBetriebsstunde': 'costsPerRunningHour',
+                    'KostenProRückgekühlterWärme': 'costsPerFlowHour',
                     'Beschränkung Einsatzzeit': 'Beschränkung Einsatzzeit',
 
                     }
