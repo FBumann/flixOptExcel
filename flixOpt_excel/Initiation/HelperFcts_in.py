@@ -168,6 +168,7 @@ def handle_heating_network(zeitreihen: pd.DataFrame) -> pd.DataFrame:
 
     if "SinkLossHeat" not in zeitreihen.keys():  # Berechnung der Netzverluste
         k_loss_netz = 0.4640  # in MWh/K        # Vereinfacht, ohne Berücksichtigung einer sich ändernden Netzlänge
+        # TODO: into excel
         zeitreihen["SinkLossHeat"] = k_loss_netz * (
                 (zeitreihen["TVL_FWN"] + zeitreihen["TRL_FWN"]) / 2 - zeitreihen["Tamb"])
     else:
@@ -606,7 +607,7 @@ def limit_useage(item, zeitreihen)-> np.ndarray:
     '''
 
     if item.get("lower_limit_of_useage") is None:
-        max_rel = 1
+        max_rel = np.array([1])
     elif isinstance(item["lower_limit_of_useage"], (int,float)):
         if item.get("TS_for_limiting_of_useage") is None:
            raise Exception("If you want to limit the useage of a Heat Pump, you have to specify the TS to calculate the useage")
@@ -616,10 +617,11 @@ def limit_useage(item, zeitreihen)-> np.ndarray:
             ts_for_limiting = zeitreihen[item["TS_for_limiting_of_useage"]]
             # Create a new array based on the condition
             max_rel = (ts_for_limiting >= item["lower_limit_of_useage"]).astype(int)
+            max_rel = max_rel.values
     else:
         raise Exception("if you want to limit the useage of a Heat Pump, choose a number as the lower limit")
 
-    return max_rel.values
+    return max_rel
 
 
 def handle_operation_fund_of_heatpump(item, funding, COP, costs_for_electricity, fact=92)-> dict:
@@ -738,4 +740,5 @@ def string_to_list(delimited_string: str, delimiter: str = '-') -> list:
     Returns:
     - list: A list of floats representing the numbers in the input string.
     """
+    delimited_string = delimited_string.replace(',','.')
     return list(map(float, delimited_string.split(delimiter)))
