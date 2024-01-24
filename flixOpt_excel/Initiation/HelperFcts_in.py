@@ -357,8 +357,24 @@ def relabel_component_data(df:pd.DataFrame):
                     'Beschränkung Einsatzzeit': 'Beschränkung Einsatzzeit',
 
                     }
+    additional_data = ("min_rel", "max_rel",
+                       "loadFactor_min", "loadFactor_max",
+                       "onHoursSum_min", "onHoursSum_max",
+                       "onHours_min", "onHours_max",
+                       "offHours_min", "offHours_max",
+                       "sumFlowHours_max", "sumFlowHours_min",
+                       "switchOn_maxNr",
+                       "costsPerRunningHour",  # TODO: Problems with overwriting and only standard effect useable
+                       "costsPerFlowHour",  # TODO: Problems with overwriting and only standard effect useable
+                       "switchOnCosts",  # TODO: Problems with overwriting and only standard effect useable
 
-    unmapped_indexes = set(df.index) - set(name_mapping.keys())
+                       "iCanSwitchOff",      # Implementation with excel not clear
+                       # "valuesBeforeBegin",  # Implementation with excel not clear
+                       # "medium"              # Seems unnecessary
+                       # "val_rel",             # Problems with giving a TS
+                       # "positive_gradient",  # Not implemented yet in flixOpt (general)
+                       )
+    unmapped_indexes = set(df.index) - set(name_mapping.keys()) - set(additional_data)
     df.rename(index=name_mapping, inplace=True)
 
     if unmapped_indexes:
@@ -712,6 +728,41 @@ def convert_component_data_for_looping_through(Erzeugerdaten):
                 ErzDaten.pop(typ)
 
     return ErzDaten
+
+def split_additional_data(Erzeugerdaten:dict):
+    additional_data =  ("min_rel",          "max_rel",
+                        "loadFactor_min",   "loadFactor_max",
+                        "onHoursSum_min",   "onHoursSum_max",
+                        "onHours_min",      "onHours_max",
+                        "offHours_min",     "offHours_max",
+                        "sumFlowHours_max", "sumFlowHours_min",
+                        "switchOn_maxNr",
+                        "costsPerRunningHour",  # TODO: Problems with overwriting and only standard effect useable
+                        "costsPerFlowHour",  # TODO: Problems with overwriting and only standard effect useable
+                        "switchOnCosts",  # TODO: Problems with overwriting and only standard effect useable
+
+                        # "iCanSwitchOff",      # Implementation with excel not clear
+                        # "valuesBeforeBegin",  # Implementation with excel not clear
+                        # "medium"              # Seems unnecessary
+                        #"val_rel",             # Problems with giving a TS
+                        # "positive_gradient",  # Not implemented yet in flixOpt (general)
+                        )
+    for key, comp_type in Erzeugerdaten.items(): #dict
+        for comp in comp_type: # list
+            pop_list = []
+            kwargs = {}
+            for key, value in comp.items():
+                if key in additional_data:
+                    pop_list.append(key)
+                    if value is not None:
+                        kwargs[key] = value
+
+            comp["kwargs"] = kwargs
+            for key in pop_list:
+                comp.pop(key)
+
+    return Erzeugerdaten
+
 
 def repeat_elements_of_list(original_list:[int], repetitions:int=8760) -> np.ndarray:
     '''

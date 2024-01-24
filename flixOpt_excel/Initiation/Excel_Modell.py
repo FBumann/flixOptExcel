@@ -95,6 +95,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
     erzeugerdaten = convert_component_data_types(erzeugerdaten)
     erz_daten = convert_component_data_for_looping_through(erzeugerdaten)  # Keyword Zuweisung und Sortierung
+    erz_daten = split_additional_data(erz_daten)
     print("Erzeugerdaten wurden eingelesen.")
     # </editor-fold>
     # </editor-fold>
@@ -227,7 +228,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             aKWK = cKWK(label=item["label"], exists=exists, group=item.get("group"),
                         eta_th=item["eta_th"], eta_el=item["eta_el"],
-                        Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest),
+                        Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest, **item.get("kwargs")),
                         P_el=cFlow(label='Pel', bus=b_strom_einspeisung,
                                    costsPerFlowHour={e_costs: preiszeitreihen["costsEinspEl"],
                                                      e_co2_fw:-co2_for_el_production}),
@@ -253,7 +254,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
 
             aKessel = cKessel(label=item["label"], exists=exists, group=item.get("group"),
                               eta=item["eta_th"],
-                              Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest),
+                              Q_th=cFlow(label='Qth', bus=b_fernwaerme, nominal_val=nominal_val, investArgs=invest, **item.get("kwargs")),
                               Q_fu=cFlow(label='Qfu', bus=fuel_bus, costsPerFlowHour=fuel_costs)
                               )
             Kessels.append(aKessel)
@@ -280,7 +281,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             aEHK = cEHK(label=item["label"], eta=item["eta_th"],
                         exists=exists, group=item.get("group"),
                         Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists,
-                                   nominal_val=nominal_val, investArgs=invest),
+                                   nominal_val=nominal_val, investArgs=invest, **item.get("kwargs")),
                         P_el=cFlow(label='Pel', bus=BusInput, costsPerFlowHour=fuel_costs)
                         )
             EHKs.append(aEHK)
@@ -318,7 +319,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                                        nominal_val=nominal_val, exists=exists,
                                        max_rel=max_rel,
                                        costsPerFlowHour=fund_op,
-                                       investArgs=invest),
+                                       investArgs=invest, **item.get("kwargs")),
                             P_el=cFlow(label='Pel', bus=b_strom_bezug, costsPerFlowHour=FuelcostsEl)
                             )
             WPs.append(aWP)
@@ -353,7 +354,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                               nominal_val_Qfu=nominal_val_Qfu, segPel=segPel, segQth=segQth,
                               costsPerFlowHour_fuel=fuel_costs,
                               costsPerFlowHour_el={e_costs: preiszeitreihen["costsEinspEl"]},
-                              investArgs=invest
+                              investArgs=invest, **item.get("kwargs")
                               )
             KWKekts = KWKekts + aKWKekt
 
@@ -379,7 +380,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
             Qin = cFlow(label="Qab", bus=b_abwaerme_ht, costsPerFlowHour=Fuelcosts)
             Qout = cFlow(label="Qth", bus=b_fernwaerme,
                          nominal_val=nominal_val, exists=exists,
-                         investArgs=invest)
+                         investArgs=invest, **item.get("kwargs"))
 
             aAbwaermeHT = cBaseLinearTransformer(label=item["label"],
                                                  exists=exists, group=item.get("group"),
@@ -416,7 +417,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                                                  nominal_val=nominal_val, exists=exists,
                                                  max_rel=max_rel,
                                                  investArgs=invest,
-                                                 costsPerFlowHour=fund_op),
+                                                 costsPerFlowHour=fund_op, **item.get("kwargs")),
                                       P_el=cFlow(label='Pel', bus=b_strom_bezug, costsPerFlowHour=FuelcostsEl),
                                       Q_ab=cFlow(label='Qab', bus=b_abwaerme_nt, costsPerFlowHour=FuelcostsAbw)
                                       )
@@ -456,7 +457,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                                 inFlow=cFlow(label="QthLoad", bus=b_fernwaerme,
                                              nominal_val=nominal_val_flows, exists=exists, investArgs=Invest_flow_in),
                                 outFlow=cFlow(label="QthUnload", bus=b_fernwaerme,
-                                              nominal_val=nominal_val_flows, exists=exists, investArgs=Invest_flow_out),
+                                              nominal_val=nominal_val_flows, exists=exists, investArgs=Invest_flow_out, **item.get("kwargs")),
                                 avoidInAndOutAtOnce=True,
                                 max_rel_chargeState=capacity_max_rel, fracLossPerHour=item["fracLossPerHour"],
                                 capacity_inFlowHours=capacity,
@@ -498,7 +499,7 @@ def run_excel_model(excel_file_path: str, solver_name: str, gap_frac: float = 0.
                                     Q_th=cFlow(label='Qth', bus=b_fernwaerme, exists=exists, max_rel=max_rel,
                                                nominal_val=nominal_val,
                                                costsPerRunningHour={e_costs: item.get("costsPerRunningHour", None)},
-                                               investArgs=invest),
+                                               investArgs=invest, **item.get("kwargs")),
                                     P_el=cFlow(label='Pel', bus=BusInput, costsPerFlowHour=Fuelcosts)
                                     )
             Coolers.append(aCooler)
