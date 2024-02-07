@@ -1,5 +1,5 @@
 .idea/
 venv/
 .DS_Store
-flixOptExcel.egg-info
+flixOptExcel.egg-info/
 Testing/
