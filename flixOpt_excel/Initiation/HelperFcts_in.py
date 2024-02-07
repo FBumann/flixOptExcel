@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 import pandas as pd
 import numpy as np
-from typing import List
+from typing import List, Literal, Union
+import re
 
 from flixOpt.flixPlotHelperFcts import *
 ###############################################################################################################
@@ -9,10 +10,12 @@ from flixOpt.flixPlotHelperFcts import *
 def check_dataframe_consistency(df: pd.DataFrame, years: List[int], name_of_df: str = "Unnamed Dataframe"):
     if len(df.index) / 8760 != len(years):
         raise Exception(f"Length of '{name_of_df}': {len(df)}; Number of years: {len(years)}; Doesn't match.")
-    if df.isnull().any().any():
-        print(f"There are missing values in '{name_of_df}'.")
 
-def is_valid_format(input_string:str):
+    columns_with_nan = df.columns[df.isna().any()]
+    if not columns_with_nan.empty:
+        raise Exception(f"There are missing values in the columns: {columns_with_nan}.")
+
+def is_valid_format_min_max(input_string:str):
     '''
     This function was written to check if a string is of the format "min-max"
     ----------
@@ -20,7 +23,6 @@ def is_valid_format(input_string:str):
     -------
     bool
     '''
-    import re
     # Define the regular expression pattern
     pattern = r'^\d+-\d+$'
     #   '^' asserts the start of the string
@@ -33,6 +35,46 @@ def is_valid_format(input_string:str):
         return True
     else:
         return False
+
+def is_valid_format_segmentsOfFlows(input_string:str, mode:Literal['validate','decode']) -> Union[bool, list]:
+    '''
+    This function was written to check if a string is of the format "0;0 ;5;10 ; 10;30"
+    In mode 'validate, returns bool. In mode 'decode', returns a list of numbers
+    ----------
+    Returns
+    -------
+    bool
+    '''
+
+    # Replace commas with dots to handle decimal separators
+    input_string = input_string.replace(',', '.')
+
+    # Split the string into a list of substrings using semicolon as the delimiter
+    numbers_str = input_string.split(';')
+    # Convert each substring to either int or float
+    numbers = [int(num) if '.' not in num else float(num) for num in numbers_str]
+
+    if not isinstance(numbers, list):
+        pass
+        #raise Exception("Conversion to segmentsOfFlows didnt work. Use numbers, seperated by ';'")
+    elif not all(isinstance(element, (int,float)) for element in numbers):
+        pass
+        #raise Exception("Conversion to segmentsOfFlows didnt work. Use numbers, seperated by ';'")
+    else:
+        if mode == 'validate':
+            return True
+        elif mode == 'decode':
+            return numbers
+        else:
+            raise Exception(f"{mode} is not a valid mode.")
+    if mode == 'validate':
+        return False
+    else:
+        raise Exception("Error encountered in parsing of String")
+
+
+
+
 
 def to_ndarray(value, desired_length: int) -> np.ndarray:
     if isinstance(value, np.ndarray):
@@ -253,8 +295,6 @@ def handle_component_data(df:pd.DataFrame)-> dict:
     # <editor-fold desc="Check for invalid Comp types">
     Erzeugertypen = ('KWK', 'Kessel', 'Speicher', 'EHK', 'Waermepumpe', 'AbwaermeHT', 'AbwaermeWP', 'Rueckkuehler',
                      'KWKekt')  # DONT CHANGE!!!
-    print("Accepted types of Components:")
-    print(Erzeugertypen)
     for typ in df.iloc[0, :].dropna():
         if typ not in Erzeugertypen: raise Exception(
             f"{typ} is not an accepted type of Component. Accepted types are: {Erzeugertypen}")
@@ -287,9 +327,6 @@ def handle_component_data(df:pd.DataFrame)-> dict:
         #set index to the first column
         subset_df.set_index('category', inplace=True)
 
-        # change the labels of the dataframe
-        subset_df = relabel_component_data(subset_df)
-
         # Store the subset DataFrame in the dictionary
         Erzeugerdaten[value] = subset_df
     # </editor-fold>
@@ -305,6 +342,7 @@ def relabel_component_data(df:pd.DataFrame):
     -------
     pd.DataFrame
     '''
+    df = df.copy()
     name_mapping = {'Name': 'label',
                     'Gruppe': 'group',
                     'Optional': 'optional',
@@ -321,11 +359,16 @@ def relabel_component_data(df:pd.DataFrame):
                     'Zusatzkosten pro MWh Strom': 'ZusatzkostenEnergieInput',
                     'Startjahr': 'Startjahr',
                     'Endjahr': 'Endjahr',
+                    'SegmentsQfu': 'SegmentsQfu',
+                    'SegmentsQth': 'SegmentsQth',
+                    'SegmentsPel': 'SegmentsPel',
+                    'Investgruppe': 'Investgruppe',
 
                     # KWKekt
                     'Thermische Leistung (Stützpunkte)': 'steps_Qth',
                     'Elektrische Leistung (Stützpunkte)': 'steps_Pel',
                     'Brennstoff Leistung': 'nom_val_Qfu',
+                    'Ausschaltbar': 'canBeTurnedOff',
 
                     # Wärmepumpen
                     'MindestSCOP': 'MindestSCOP',
@@ -334,7 +377,6 @@ def relabel_component_data(df:pd.DataFrame):
                     'COP berechnen': 'calc_COP',
                     'Zeitreihe für Einsatzbeschränkung': 'TS_for_limiting_of_useage',
                     'Untergrenze für Einsatz': 'lower_limit_of_useage',
-                    'Beschränkung der Leistung': 'max_rel_th',
 
                     # Abwaerme
                     'Abwärmekosten': 'costsPerFlowHour_abw',
@@ -364,11 +406,11 @@ def relabel_component_data(df:pd.DataFrame):
                        "offHours_min", "offHours_max",
                        "sumFlowHours_max", "sumFlowHours_min",
                        "switchOn_maxNr",
+                       "iCanSwitchOff",
                        "costsPerRunningHour",  # TODO: Problems with overwriting and only standard effect useable
                        "costsPerFlowHour",  # TODO: Problems with overwriting and only standard effect useable
                        "switchOnCosts",  # TODO: Problems with overwriting and only standard effect useable
 
-                       "iCanSwitchOff",      # Implementation with excel not clear
                        # "valuesBeforeBegin",  # Implementation with excel not clear
                        # "medium"              # Seems unnecessary
                        # "val_rel",             # Problems with giving a TS
@@ -430,11 +472,12 @@ def get_invest_from_excel(item: dict, costs_effect: cEffectType, funding_effect:
         if item["nominal_val"] is None:
             investmentSize_is_fixed = False
         elif isinstance(item["nominal_val"], str):
-            if not is_valid_format(item["nominal_val"]):
-                raise Exception("If nominal_val or capacity is passed as a string, it must be of the format 'min-max'")
-            investmentSize_is_fixed = False
-            min_investmentSize = float(item["nominal_val"].split("-")[0])
-            max_investmentSize = float(item["nominal_val"].split("-")[1])
+            if is_valid_format_min_max(item["nominal_val"]):
+                investmentSize_is_fixed = False
+                min_investmentSize = float(item["nominal_val"].split("-")[0])
+                max_investmentSize = float(item["nominal_val"].split("-")[1])
+            else:
+                raise Exception(f"Wrong format of string for nominal_value of {item['label']}.")
         elif isinstance(item["nominal_val"], (int, float)):
             investmentSize_is_fixed = True
         else:
@@ -463,7 +506,7 @@ def get_invest_from_excel(item: dict, costs_effect: cEffectType, funding_effect:
         if item["nominal_val"] is None:
             investmentSize_is_fixed = False
         elif isinstance(item["nominal_val"], str):
-            if not is_valid_format(item["nominal_val"]):
+            if not is_valid_format_min_max(item["nominal_val"]):
                 raise Exception("If nominal_val or capacity is passed as a string, it must be of the format 'min-max'")
             investmentSize_is_fixed = False
             min_investmentSize = float(item["nominal_val"].split("-")[0])
@@ -499,7 +542,7 @@ def get_invest_from_excel(item: dict, costs_effect: cEffectType, funding_effect:
                          min_investmentSize=min_investmentSize, max_investmentSize=max_investmentSize)
     return Invest
 
-def handle_operation_years(item:dict, outputYears:list) -> np.ndarray:
+def create_exists(item:dict, outputYears:list) -> np.ndarray:
     '''
     This function was written to match the operation years of a component to the operation years of the system
     ----------
@@ -528,10 +571,10 @@ def handle_nom_val(value_nom_val_or_cap):
 
     '''
     if isinstance(value_nom_val_or_cap, str):
-        if is_valid_format(value_nom_val_or_cap):
+        if is_valid_format_min_max(value_nom_val_or_cap):
             return None
         else:
-            raise Exception("If nominal_val or capacity is passed as a string, it must be of the format 'min-max'")
+            raise Exception("If nominal_val or capacity is passed as a string, it must be of the format 'min-max' or segmentsOfFlows")
     elif value_nom_val_or_cap is None:
         return None
     elif isinstance(value_nom_val_or_cap, (int, float)):
@@ -584,32 +627,6 @@ def handle_fuel_input_switch_excel(item, Preiszeitreihen,
 
 
     return fuel_bus, fuel_costs
-
-
-def handle_COP_calculation(item, Zeitreihen, eta=0.5)-> cTSraw:
-    '''
-    This function was written to assign a COP to a Heat Pump
-    ----------
-
-    Returns
-    -------
-    (fuel_bus: cBus, fuel_costs: dict)
-    '''
-    # Wenn fixer COP übergeben wird
-    if isinstance(item["COP"], (int, float)):
-        COP = item["COP"]
-    elif item["COP"] in Zeitreihen.keys():  # Wenn verlinkung zu Temperatur der waermequelle vorgegeben ist
-        if item["calc_COP"]:
-            COP = createCOPfromTS(TqTS=Zeitreihen[item["COP"]], TsTS=Zeitreihen["TVL_FWN"], eta=eta)
-        else:
-            COP = Zeitreihen[item["COP"]]
-        Zeitreihen["COP" + item["label"]] = COP
-        COP = cTSraw(COP)
-    else:
-        raise Exception("Verlinkung zwischen COP der WP " + item[
-            "label"] + " und der Zeitreihe ist fehlgeschlagen. Prüfe den Namen der Zeitreihe")
-
-    return COP
 
 def limit_useage(item, zeitreihen)-> np.ndarray:
     '''
@@ -681,7 +698,8 @@ def convert_component_data_types(component_data:dict):
         subset_df.replace({np.nan: None}, inplace=True)
 
         # replace "ja" and "nein" with True and False
-        subset_df.replace({'ja': True, 'nein': False}, inplace=True)
+        subset_df.replace({'ja': True,  'Ja':True, 'True':True, 'true':True,
+                           'nein': False, 'Nein': False, 'false': False, 'False': False}, inplace=True)
 
         # check if
 
@@ -729,7 +747,7 @@ def convert_component_data_for_looping_through(Erzeugerdaten):
 
     return ErzDaten
 
-def split_additional_data(Erzeugerdaten:dict):
+def split_kwargs(Erzeugerdaten:dict):
     additional_data =  ("min_rel",          "max_rel",
                         "loadFactor_min",   "loadFactor_max",
                         "onHoursSum_min",   "onHoursSum_max",
@@ -737,14 +755,14 @@ def split_additional_data(Erzeugerdaten:dict):
                         "offHours_min",     "offHours_max",
                         "sumFlowHours_max", "sumFlowHours_min",
                         "switchOn_maxNr",
+                        "iCanSwitchOff",
                         "costsPerRunningHour",  # TODO: Problems with overwriting and only standard effect useable
                         "costsPerFlowHour",  # TODO: Problems with overwriting and only standard effect useable
                         "switchOnCosts",  # TODO: Problems with overwriting and only standard effect useable
 
-                        # "iCanSwitchOff",      # Implementation with excel not clear
                         # "valuesBeforeBegin",  # Implementation with excel not clear
                         # "medium"              # Seems unnecessary
-                        #"val_rel",             # Problems with giving a TS
+                        # "val_rel",             # Problems with giving a TS
                         # "positive_gradient",  # Not implemented yet in flixOpt (general)
                         )
     for key, comp_type in Erzeugerdaten.items(): #dict

@@ -148,7 +148,7 @@ def getFuelCosts(calc:flixPostXL) -> pd.DataFrame:
     result_dataframe = pd.DataFrame(index=calc.timeSeries)
     for flow in flows:
         name = flow.label_full.split("_")[-1]
-        ar = flow.results_struct.costsPerFlowHour_costs
+        ar = flow.results["costsPerFlowHour_standard"]
         if isinstance(ar,(float,int)):
             ar=ar * np.ones(len(calc.timeSeries))
 
@@ -175,7 +175,7 @@ def reorder_columns(df:pd.DataFrame, not_sorted_columns: List[str] = None):
     '''
     if isinstance(df, pd.Series): df = df.to_frame().T
 
-    means = df.mean()
+    means = df.sum()
     sorted_columns = means.sort_values(ascending=False).index
     sorted_df = df[sorted_columns]
 
