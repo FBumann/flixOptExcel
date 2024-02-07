@@ -2,8 +2,9 @@ import pandas as pd
 import numpy as np
 import os.path
 from openpyxl import load_workbook
-from openpyxl.chart import BarChart, Reference
+from openpyxl.chart import BarChart, Reference,LineChart
 from openpyxl.utils.dataframe import dataframe_to_rows
+from typing import Literal
 
 from flixOpt_excel.Evaluation.flixPostprocessingXL import flixPostXL
 from flixOpt_excel.Evaluation.HelperFcts_post import resample_data, rs_in_two_steps, getFuelCosts, reorder_columns
@@ -95,7 +96,7 @@ def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "de
                                                                  grouped=True, actual_storage_capacity=False)
         df_speicher_kapazitaet_Y.to_excel(writer, index=True, sheet_name="Speicherkapazität")
 
-        df_speicher_fuellstand_sum_H = excel.get_speicher_fuellstand("H", "mean", allocated=True)
+        df_speicher_fuellstand_sum_H = excel.get_speicher_fuellstand("H", "mean", allocated=True).reset_index(drop=True)
         df_speicher_fuellstand_sum_H.to_excel(writer, index=True, sheet_name="Speicher Summen")
 
     print("Jahresvergleich Plots to Excel finished")
@@ -243,16 +244,15 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
             # Wärmeerzeugung als Jahresdauerlinien (Tagesmittelwerte)
             df = df_fernwaerme_erz_nach_techn_D[df_fernwaerme_erz_nach_techn_D.index.year == year]
-            df.sort_values("Wärmelast_mit_Verlust", ascending=False).to_excel(writer, index=True, sheet_name="WärmeErz-Last-D")
-            df.sort_values("Strompreis", ascending=False).to_excel(writer, index=True, sheet_name="WärmeErz-Strom-D")
+            df.sort_values("Wärmelast_mit_Verlust", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last-D")
+            df.sort_values("Strompreis", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Strom-D")
 
             print(f"Year-{year}: Short Version written")
             if not short_version:
                 # Wärmeerzeugung als Jahresdauerlinien (Stundenwerte)
                 df = df_fernwaerme_erz_nach_techn_H[df_fernwaerme_erz_nach_techn_H.index.year == year]
-                df.sort_values("Wärmelast_mit_Verlust", ascending=False).to_excel(writer, index=True,
-                                                                          sheet_name="WärmeErz-Last")
-                df.sort_values("Strompreis", ascending=False).to_excel(writer, index=True, sheet_name="WärmeErz-Strom")
+                df.sort_values("Wärmelast_mit_Verlust", ascending=False, ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last")
+                df.sort_values("Strompreis", ascending=False, ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Strom")
 
                 # Wärmeerzeugung im Februar und Juli (Stundenwerte)
                 df = df_fernwaerme_erz_nach_techn_H[df_fernwaerme_erz_nach_techn_H.index.year == year]
@@ -261,7 +261,8 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
                 # Jahresdauerlinien der einzelnen Wärmeerzeuger (Stundenwerte)
                 df = df_fernwaerme_erz_nach_techn_H[df_fernwaerme_erz_nach_techn_H.index.year == year]
-                df = pd.DataFrame(-np.sort(-df.values, axis=0), index=df.index, columns=df.columns)
+                df = pd.DataFrame(-np.sort(-df.values, axis=0), columns=df.columns)
+
                 df.to_excel(writer, index=True, sheet_name="WärmeErz-Last-DL-H")
 
                 # Speicherfüllstand (Stundenwerte) allokiert
@@ -315,10 +316,12 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
     else:
         output_file_path = custom_output_file_path
 
-    filename = f"Zusatzinfo-{calc.infos['calculation']['name']}.xlsx"
+    filename = f"Zusatzinfo_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
     path_excel = os.path.join(output_file_path, filename)
 
     if effects:
+        filename = f"Effects_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
+        path_excel = os.path.join(output_file_path, filename)
         df_effects_sum = pd.DataFrame()
         for effect_name, effect in calc.results["globalComp"].items():
             if effect_name == "penalty":
@@ -326,7 +329,7 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
             df_effects_sum[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="all", as_TS=True,shares=False)
         df_effects_sum = resample_data(data_frame=df_effects_sum,target_years=calc.years, resampling_by=resample_by,resampling_method="sum")
 
-        df_to_excel_w_chart(df_effects_sum, path_excel, "Effects_SUM", "See Legend", "Time")
+        df_to_excel_w_chart(df_effects_sum, path_excel, "Effects_SUM", "See Legend", "Time", style="line")
 
 
         df_effects_op = pd.DataFrame()
@@ -336,23 +339,40 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
             df_effects_op[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="operation", as_TS=True,shares=False)
         df_effects_op = resample_data(data_frame=df_effects_op,target_years=calc.years, resampling_by=resample_by,resampling_method="sum")
 
-        df_to_excel_w_chart(df_effects_op, path_excel, "Effects_OP", "diverse", "Time")
+        df_to_excel_w_chart(df_effects_op, path_excel, "Effects_OP", "diverse", "Time", style="line")
+
+        df_effects_inv = pd.DataFrame()
+        for effect_name, effect in calc.results["globalComp"].items():
+            if effect_name == "penalty":
+                continue
+            df_effects_inv[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="invest", as_TS=True, shares=False)
+        df_effects_inv = resample_data(data_frame=df_effects_inv,target_years=calc.years, resampling_by=resample_by,resampling_method="sum")
+
+        df_to_excel_w_chart(df_effects_inv, path_excel, "Effects_Inv", "diverse", "Time", style="line")
+        print("Effects finished")
 
 
     if buses:
-        for bus in calc.buses:
-            data = calc.to_dataFrame(busOrComp=bus, direction="inout",invert_Output=True)*-1
+        filename = f"Buses_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
+        path_excel = os.path.join(output_file_path, filename)
+        for bus_name in calc.buses:
+            data = calc.to_dataFrame(busOrComp=bus_name, direction="inout",invert_Output=True)*-1
             data = resample_data(data_frame=data, target_years=calc.years,
                                  resampling_by=resample_by, resampling_method="mean")
-            df_to_excel_w_chart(data, path_excel, "bus "+bus, "MW", "Zeit")
-    if comps:
-        for comp in calc.comps:
-            data = calc.to_dataFrame(busOrComp=comp, direction="inout",invert_Output=True)*-1
-            data = resample_data(data_frame=data, target_years=calc.years,
-                                 resampling_by=resample_by, resampling_method="mean")
-            df_to_excel_w_chart(data, path_excel, "comp "+comp, "MW", "Zeit")
+            df_to_excel_w_chart(data, path_excel, bus_name, "MW", "Time")
+        print("Busses finished")
 
-def df_to_excel_w_chart(df: pd.DataFrame, filepath: str, title: str, ylabel: str, xlabel: str):
+    if comps:
+        filename = f"Comps_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
+        path_excel = os.path.join(output_file_path, filename)
+        for comp_name in calc.comps:
+            data = calc.to_dataFrame(busOrComp=comp_name, direction="inout",invert_Output=True)*-1
+            data = resample_data(data_frame=data, target_years=calc.years,
+                                 resampling_by=resample_by, resampling_method="mean")
+            df_to_excel_w_chart(data, path_excel, comp_name, "MW", "Time")
+        print("Comps finished")
+
+def df_to_excel_w_chart(df: pd.DataFrame, filepath: str, title: str, ylabel: str, xlabel: str, style:Literal["bar","line"]="bar"):
     """
     Write DataFrame to an Excel file with a stacked bar chart.
 
@@ -402,25 +422,33 @@ def df_to_excel_w_chart(df: pd.DataFrame, filepath: str, title: str, ylabel: str
     for r in dataframe_to_rows(df, index=False, header=True):
         sheet.append(r)
 
-    # Create a stacked bar chart
-    chart = BarChart()
+    # Create the Data and References
     data = Reference(sheet, min_col=2, min_row=1, max_col=df.shape[1], max_row=df.shape[0] + 1)
     labels = Reference(sheet, min_col=1, min_row=2, max_row=df.shape[0] + 1)
 
+    # Create a stacked bar chart
+    if style=="bar":
+        chart = BarChart()
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(labels)
+        # Stacked bar plot
+        chart.type = "col"
+        chart.grouping = "stacked"
+        chart.overlap = 100
+        chart.gapWidth = 0  # Adjust the gap between bars (e.g., set gapWidth to 0%)
+    elif style=="line":
+        chart = LineChart()
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(labels)
+        # Stacked bar plot
+        chart.type = "line"
+
+    # General Chart stuff
     chart.title = title
     chart.y_axis.title = ylabel
     chart.x_axis.title = xlabel
-    # Set the width and height of the chart (in pixels)
     chart.width = 30
     chart.height = 15
-
-    chart.add_data(data, titles_from_data=True)
-    chart.set_categories(labels)
-    # Stacked bar plot
-    chart.type = "col"
-    chart.grouping = "stacked"
-    chart.overlap = 100
-    chart.gapWidth = 0  # Adjust the gap between bars (e.g., set gapWidth to 0%)
 
     # Add the chart to the sheet
     sheet.add_chart(chart, "D4")  # Adjust the position as needed
@@ -504,6 +532,7 @@ class cExcelFcts():
         '''
         df_invest = self.calc.get_invest_results_as_TS(flows=flows, storages=storage_capacity,
                                                        grouped=grouped, actual_storage_capacity=actual_storage_capacity)
+        df_invest = reorder_columns(df_invest)
         return resample_data(df_invest, self.calc.years, resamply_by, rs_method)
 
     def get_waermekosten(self, with_fix_costs, resamply_by):
@@ -612,6 +641,7 @@ class cExcelFcts():
         '''
         df_sources = self.calc.get_sources_and_sinks(sources=True, sinks=False, sinks_n_sources=False)
         df = resample_data(df_sources, self.calc.years, resamply_by, rs_method)
+        df = reorder_columns(df)
 
         return df
 
@@ -635,7 +665,7 @@ class cExcelFcts():
             if resamply_by = "D": ["Tagesmittel", "Minimum (Stunde)", "Maximum (Stunde)"]
             if resamply_by = "Y": ["Jahresmittel", "Minimum (Tagesmittel)", "Maximum (Tagesmittel)"],
         '''
-        df_stromerzeugung = self.calc.to_dataFrame("StromEinsp", "out",invert_Output=False)
+        df_stromerzeugung = self.calc.to_dataFrame("StromEinspeisung", "out",invert_Output=False)
         df = rs_in_two_steps(df_stromerzeugung, self.calc.years, resamply_by, "H")
 
         return df
@@ -698,7 +728,7 @@ class cExcelFcts():
 
         if allocated:
             charge_state_sum = df_speicher_chargeState.sum(axis=1)
-            netto_flow_sum = df_speicher_nettoFlow.sum(axis=1)
+            netto_flow_sum = df_speicher_nettoFlow.sum(axis=1)*-1
 
             df = pd.concat([charge_state_sum, netto_flow_sum], axis=1)
             df.columns = ["Gesamtspeicherstand", "Nettospeicherflow"]
@@ -743,7 +773,7 @@ class cExcelFcts():
         list_of_speicher = [comp.label for comp in self.calc.comp_posts if comp.type == "cStorage"]
 
         for comp in list_of_speicher:
-            df_speicher_nettoFlow[comp] = self.calc.results[comp]["nettoFlow"]
+            df_speicher_nettoFlow[comp] = self.calc.results[comp]["nettoFlow"]*-1
 
         if allocated:
             df = df_speicher_nettoFlow.sum(axis=1)
@@ -753,3 +783,7 @@ class cExcelFcts():
             df = resample_data(df_speicher_nettoFlow, self.calc.years, resamply_by, rs_method)
 
         return df
+
+
+#TODO: Adjust cExcelFcts() in a way, that other effects, other bus names and so on can be used.
+# TODO: Evaluate, if even usefull

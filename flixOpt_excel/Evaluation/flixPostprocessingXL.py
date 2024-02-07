@@ -263,8 +263,9 @@ class flixPostXL(flix_results):
         exists_coll = {}
         exists_default = np.ones(len(self.timeSeries))
         for flow in self.flows:
-            if hasattr(flow, "exists"):
-                exists = flow.exists
+            flow_results = flow.results
+            if "exists" in flow_results.keys():
+                exists = flow_results["exists"]
             else:
                 exists = exists_default
             if not isinstance(exists, np.ndarray):
@@ -288,7 +289,10 @@ class flixPostXL(flix_results):
             # Divide each element in the array by its sum using element-wise division
             normalized_data = {}
             for key, array in exists_coll.items():
-                normalized_data[key] = array / np.sum(array)
+                if np.sum(array) == 0:
+                    normalized_data[key] = array
+                else:
+                    normalized_data[key] = array / np.sum(array)
             exists_coll = normalized_data
 
         return exists_coll
@@ -323,7 +327,6 @@ class flixPostXL(flix_results):
         # For Storages
         if storages:
             for comp_label in self.infos_system["components"].keys():
-                #TODO: Add "if cStorage"?
                 comp = self.results[comp_label]
                 invest_data = comp.get("invest", None)
                 if invest_data is None: continue
@@ -428,7 +431,7 @@ class cVisuData(dict):
     Class to extract the data from a flix_results in preparation for the Model visualization
     '''
 
-    def __init__(self, calc: flix_results=None, es:cEnergySystem=None, custom_color_map = None):
+    def __init__(self, calc: flix_results=None, es:cEnergySystem=None, custom_color_map:dict = None):
         '''
         Extract the necessary data from a flix_results object
         :param calc: flix_results Object
@@ -534,7 +537,7 @@ class cModelVisualizer():
     model_visualization = cModelVisualizer(VisuData)
     model_visualization.show()
     '''
-    def __init__(self, Comps, custom_scale: float = "auto"):
+    def __init__(self, Comps:cVisuData, custom_scale: float = "auto"):
         self.Comps = Comps
         self.Buses = self._get_connected_busses()
         if custom_scale == "auto":
