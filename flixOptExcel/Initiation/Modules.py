@@ -899,7 +899,7 @@ class ExcelComps:
             invest_args_flow_in.specificCosts[Invest_effect] = -1
             invest_args_flow_out.specificCosts[Invest_effect] = 1
 
-        capacity_max_rel = self.calculate_relative_capacity_of_storage(comp_data["AbhängigkeitVonDT"], 65)
+        capacity_max_rel = self.calculate_relative_capacity_of_storage(comp_data.get("AbhängigkeitVonDT"), 65)
         max_rel_flows = capacity_max_rel[:-1]
 
         existing_keys = ["label", "bus", "exists", "nominal_val", "investArgs", "max_rel"]
@@ -1144,10 +1144,10 @@ class ExcelComps:
         '''
         if calculate_DT:
             maxReldT = ((self.time_series_data["TVL_FWN"] - self.time_series_data["TRL_FWN"]) / dT_max).values.tolist()
-            maxReldT.append(maxReldT[-1])
         else:
-            maxReldT = 1
+            maxReldT = np.ones(len(self.timeSeries)).tolist()
 
+        maxReldT.append(maxReldT[-1])
         return maxReldT
 
     def handle_COP_calculation(self, COP: Union[int, float, str], calc_COP_from_TS: bool, name_of_comp:str, eta_carnot=0.5) -> Union[cTSraw, float]:
