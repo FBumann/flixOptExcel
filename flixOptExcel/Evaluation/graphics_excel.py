@@ -533,7 +533,11 @@ class cExcelFcts():
         df_invest = self.calc.get_invest_results_as_TS(flows=flows, storages=storage_capacity,
                                                        grouped=grouped, actual_storage_capacity=actual_storage_capacity)
         df_invest = reorder_columns(df_invest)
-        return resample_data(df_invest, self.calc.years, resamply_by, rs_method)
+
+        if df_invest.empty:
+            return df_invest
+        else:
+            return resample_data(df_invest, self.calc.years, resamply_by, rs_method)
 
     def get_waermekosten(self, with_fix_costs, resamply_by):
         '''
