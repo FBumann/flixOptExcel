@@ -405,7 +405,7 @@ def df_to_excel_w_chart(df: pd.DataFrame, filepath: str, title: str, ylabel: str
         wb = load_workbook(filepath)
     except FileNotFoundError:
         template_path = os.path.join( os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                         "resources", "ExcelTemplates", "Template_blanco.xlsx")
+                                         "resources", "Template_blanco.xlsx")
         wb = load_workbook(template_path)
 
     # Check if the sheet already exists
