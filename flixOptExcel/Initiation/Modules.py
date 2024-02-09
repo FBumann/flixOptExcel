@@ -1247,20 +1247,41 @@ class ExcelModel:
                           buses_hourly:bool=False, comps_hourly:bool=False, effects_hourly:bool=False) ->flixPostXL:
         """
         Visualizes the results of the calculation.
-        Take Care. Writing Hourly data to excel takes a long time.
+
+        * The overview results are mainly used to compare yearly mean values
+          between different years.
+
+        * The annual results are used to go into detail about the heating
+          production and storage usage in each year.
+
+        * The buses results are used to look at all uses of energy balance.
+
+        * The comps results are used to look at all Transformation processes
+          in the different components.
+
+        * The effects results are used to look at all effects. Effects are
+          Costs, CO2 Funding, etc.
+
+        * Daily mean values are enough for most use cases.
+
+        * Hourly values are good for in-depth examinations, but take a long
+          time to extract and save.
+
+        * TAKE CARE: Writing hourly data to excel takes a significant amount of time for
+          big Models with many Components.
 
         Parameters:
-        - overview (bool): Whether to generate overview graphics. Default is True.
-        - annual_results (bool): Whether to generate annual results graphics. Default is True.
-        - buses_daily (bool): Whether to generate daily results for buses. Default is True.
-        - comps_daily (bool): Whether to generate daily results for components. Default is True.
-        - effects_daily (bool): Whether to generate daily results for effects. Default is True.
-        - buses_hourly (bool): Whether to generate hourly results for buses. Default is False.
-        - comps_hourly (bool): Whether to generate hourly results for components. Default is False.
-        - effects_hourly (bool): Whether to generate hourly results for effects. Default is False.
+            overview (bool): Whether to generate overview graphics. Default is True.
+            annual_results (bool): Whether to generate annual results graphics. Default is True.
+            buses_daily (bool): Whether to generate daily results for buses. Default is True.
+            comps_daily (bool): Whether to generate daily results for components. Default is True.
+            effects_daily (bool): Whether to generate daily results for effects. Default is True.
+            buses_hourly (bool): Whether to generate hourly results for buses. Default is False.
+            comps_hourly (bool): Whether to generate hourly results for components. Default is False.
+            effects_hourly (bool): Whether to generate hourly results for effects. Default is False.
 
         Returns:
-        - flixPostXL: The calculated results.
+            flixPostXL: The calculated results.
         """
 
         calc_results = self.load_results()
