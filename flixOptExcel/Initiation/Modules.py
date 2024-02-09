@@ -1197,9 +1197,6 @@ class ExcelModel:
         self.input_excel_file_path = excel_file_path
         self.years = self.excel_data.years
 
-        self.visual_representation.show()
-
-
 
     @property
     def visual_representation(self):

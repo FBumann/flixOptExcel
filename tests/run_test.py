@@ -12,6 +12,7 @@ solver_name = "cbc"         #  open source solver
 
 def main():
     excel_model = ExcelModel(excel_file_path=excel_file_path)
+    excel_model.visual_representation.show()
     excel_model.solve_model(solver_name=solver_name, gap_frac=0.01, timelimit=3600)
     excel_model.visualize_results()
     # calculation_results_for_further_inspection = excel_model.load_results()
