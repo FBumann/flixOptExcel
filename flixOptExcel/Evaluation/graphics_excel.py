@@ -6,8 +6,8 @@ from openpyxl.chart import BarChart, Reference,LineChart
 from openpyxl.utils.dataframe import dataframe_to_rows
 from typing import Literal
 
-from flixOpt_excel.Evaluation.flixPostprocessingXL import flixPostXL
-from flixOpt_excel.Evaluation.HelperFcts_post import resample_data, rs_in_two_steps, getFuelCosts, reorder_columns
+from flixOptExcel.Evaluation.flixPostprocessingXL import flixPostXL
+from flixOptExcel.Evaluation.HelperFcts_post import resample_data, rs_in_two_steps, getFuelCosts, reorder_columns
 
 
 def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "default"):

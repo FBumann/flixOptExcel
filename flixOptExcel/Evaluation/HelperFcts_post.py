@@ -5,7 +5,7 @@ import datetime
 import os.path
 from typing import Literal, List, Union
 
-from flixOpt_excel.Evaluation.flixPostprocessingXL import flixPostXL
+from flixOptExcel.Evaluation.flixPostprocessingXL import flixPostXL
 
 
 def resample_data(data_frame: Union[pd.DataFrame, np.ndarray], target_years: List[int], resampling_by: Literal["Y", "D", "H"],

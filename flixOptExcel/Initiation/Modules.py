@@ -8,8 +8,8 @@ from pprintpp import pprint as pp
 
 from flixOpt.flixComps import *
 from flixOpt.flixStructure import cEffectType, cEnergySystem
-from flixOpt_excel.Evaluation.HelperFcts_post import flixPostXL
-from flixOpt_excel.Evaluation.flixPostprocessingXL import cModelVisualizer, cVisuData
+from flixOptExcel.Evaluation.HelperFcts_post import flixPostXL
+from flixOptExcel.Evaluation.flixPostprocessingXL import cModelVisualizer, cVisuData
 from .HelperFcts_in import (check_dataframe_consistency, handle_component_data,
                             combine_dicts_of_component_data, convert_component_data_types,
                             convert_component_data_for_looping_through, calculate_hourly_rolling_mean,
@@ -1254,9 +1254,9 @@ class ExcelModel:
 
         self.visual_representation.write_html(os.path.join(calc_results.folder, 'Model_structure.html'))
 
-        from flixOpt_excel.Evaluation.graphics_excel import (run_excel_graphics_main,
-                                                             run_excel_graphics_years,
-                                                             save_in_n_outputs_per_comp_and_bus_and_effects)
+        from flixOptExcel.Evaluation.graphics_excel import (run_excel_graphics_main,
+                                                            run_excel_graphics_years,
+                                                            save_in_n_outputs_per_comp_and_bus_and_effects)
         run_excel_graphics_main(calc_results)
         run_excel_graphics_years(calc_results)
         save_in_n_outputs_per_comp_and_bus_and_effects(calc_results, buses=True, comps=True, effects=True, resample_by="D")

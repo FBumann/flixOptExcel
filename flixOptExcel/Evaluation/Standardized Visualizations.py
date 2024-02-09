@@ -5,8 +5,8 @@ import plotly.graph_objects as go
 from copy import deepcopy
 from typing import Literal
 
-from flixOpt_excel.Evaluation.flixPostprocessingXL import flixPostXL
-from flixOpt_excel.Evaluation.HelperFcts_post import resample_data
+from flixOptExcel.Evaluation.flixPostprocessingXL import flixPostXL
+from flixOptExcel.Evaluation.HelperFcts_post import resample_data
 
 class _cGraficData(dict):
     '''

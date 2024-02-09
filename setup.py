@@ -5,7 +5,7 @@ def read_requirements(file_path):
         return [line.strip() for line in file if line.strip()]
 
 setup(
-    name='flixOpt_excel',
+    name='flixOptExcel',
     version='0.1.0',
     author='Felix Bumann',
     author_email='felixbumann387@gmail.com',
@@ -26,7 +26,7 @@ setup(
     packages=find_packages(),
     include_package_data=True,  # Include non-code files specified in MANIFEST.in
     package_data={
-        'flixOpt_excel': ['resources//*.xlsx'],
+        'flixOptExcel': ['resources//*.xlsx'],
     },
     install_requires=read_requirements('requirements.txt')
 )
