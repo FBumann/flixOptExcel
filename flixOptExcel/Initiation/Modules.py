@@ -332,8 +332,8 @@ class ExcelComps:
                 effects[f"CO2Limit{year}"] = cEffectType(f"CO2Limit{year}", 't',
                                                          description="Effect to limit the Emissions in that year",
                                                          max_operationSum=self.co2_limit_dict[year])
-                co2_limiter_shares[effects[f"CO2Limit{year}"]] = create_exists({"Startjahr": year, "Endjahr": year},
-                                                                               self.years)
+                co2_limiter_shares[effects[f"CO2Limit{year}"]] = create_exists(first_year=year, last_year=year+1,
+                                                                               outputYears=self.years)
         effects['CO2FW'].specificShareToOtherEffects_operation.update(co2_limiter_shares)
 
         effects.update(self.create_invest_groups())
@@ -474,7 +474,7 @@ class ExcelComps:
         invest_args = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Thermische Leistung")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=comp_data.get("Fixkosten pro Jahr"),
             fund_fix=comp_data.get("Förderung pro Jahr"),
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -490,7 +490,7 @@ class ExcelComps:
         return cKessel(label=comp_data["Name"],
                        group=comp_data["Gruppe"],
                        eta=self.get_value_or_TS(comp_data["eta_th"]),
-                       exists=create_exists(comp_data, self.years),
+                       exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                        Q_th=cFlow(label='Qth',
                                   bus=self.busses["Fernwaerme"],
                                   nominal_val=handle_nom_val(comp_data.get("Thermische Leistung")),
@@ -509,7 +509,7 @@ class ExcelComps:
         invest_args = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Thermische Leistung")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=comp_data.get("Fixkosten pro Jahr"),
             fund_fix=comp_data.get("Förderung pro Jahr"),
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -557,7 +557,7 @@ class ExcelComps:
                         group=comp_data["Gruppe"],
                         eta_el=self.get_value_or_TS(comp_data["eta_el"]),
                         eta_th=self.get_value_or_TS(comp_data["eta_th"]),
-                        exists=create_exists(comp_data, self.years),
+                        exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                         P_el=P_el, Q_th=Q_th, Q_fu=Q_fu
                         )
         else:
@@ -575,7 +575,7 @@ class ExcelComps:
             return cBaseLinearTransformer(
                 label=comp_data["Name"],
                 group=comp_data["Gruppe"],
-                exists=create_exists(comp_data, self.years),
+                exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                 inputs=[Q_fu],
                 outputs=[Q_th, P_el],
                 segmentsOfFlows=segmentsOfFlows
@@ -586,7 +586,7 @@ class ExcelComps:
         invest_args = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Thermische Leistung")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=comp_data.get("Fixkosten pro Jahr"),
             fund_fix=comp_data.get("Förderung pro Jahr"),
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -616,7 +616,7 @@ class ExcelComps:
         return cEHK(label=comp_data["Name"],
                     group=comp_data["Gruppe"],
                     eta=self.get_value_or_TS(comp_data["eta_th"]),
-                    exists=create_exists(comp_data, self.years),
+                    exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                     Q_th=Q_th,
                     P_el=P_el,
                     )
@@ -628,7 +628,7 @@ class ExcelComps:
         invest_args = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Thermische Leistung")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=comp_data.get("Fixkosten pro Jahr"),
             fund_fix=comp_data.get("Förderung pro Jahr"),
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -671,7 +671,7 @@ class ExcelComps:
 
         return cHeatPump(label=comp_data["Name"],
                          group=comp_data["Gruppe"],
-                         exists=create_exists(comp_data, self.years),
+                         exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                          COP=self.handle_COP_calculation(comp_data["COP"], comp_data["COP berechnen"], comp_data["Name"]),
                          Q_th=Q_th,
                          P_el=P_el,
@@ -682,7 +682,7 @@ class ExcelComps:
         invest_args = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Brennstoff Leistung")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=comp_data.get("Fixkosten pro Jahr"),
             fund_fix=comp_data.get("Förderung pro Jahr"),
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -699,7 +699,7 @@ class ExcelComps:
                        BusFuel=self.busses[comp_data["Brennstoff"]],
                        BusEl=self.busses["StromEinspeisung"],
                        BusTh=self.busses["Fernwaerme"],
-                       exists=create_exists(comp_data, self.years),
+                       exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                        group=comp_data["Gruppe"],
                        nominal_val_Qfu=comp_data["Brennstoff Leistung"],
                        segPel=string_to_list(comp_data["Elektrische Leistung (Stützpunkte)"]),
@@ -718,7 +718,7 @@ class ExcelComps:
         invest_args = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Thermische Leistung")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=comp_data.get("Fixkosten pro Jahr"),
             fund_fix=comp_data.get("Förderung pro Jahr"),
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -745,7 +745,7 @@ class ExcelComps:
 
         return cBaseLinearTransformer(label=comp_data["Name"],
                                       group=comp_data["Gruppe"],
-                                      exists=create_exists(comp_data, self.years),
+                                      exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                                       inputs=[Q_abw], outputs=[Q_th], factor_Sets=[{Q_abw: 1, Q_th: 1}]
                                       )
 
@@ -753,7 +753,7 @@ class ExcelComps:
         invest_args = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Thermische Leistung")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=comp_data.get("Fixkosten pro Jahr"),
             fund_fix=comp_data.get("Förderung pro Jahr"),
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -800,7 +800,7 @@ class ExcelComps:
 
         return cAbwaermeHP(label=comp_data["Name"],
                            group=comp_data["Gruppe"],
-                           exists=create_exists(comp_data, self.years),
+                           exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                            COP=self.handle_COP_calculation(comp_data["COP"], comp_data["COP berechnen"], comp_data["Name"]),
                            Q_th=Q_th,
                            P_el=P_el,
@@ -812,7 +812,7 @@ class ExcelComps:
         invest_args = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Thermische Leistung")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=comp_data.get("Fixkosten pro Jahr"),
             fund_fix=comp_data.get("Förderung pro Jahr"),
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -851,7 +851,7 @@ class ExcelComps:
 
         return cCoolingTower(label=comp_data["Name"],
                              group=comp_data["Gruppe"],
-                             exists=create_exists(comp_data, self.years),
+                             exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                              specificElectricityDemand=comp_data.get("Strombedarf"),
                              Q_th=Q_th,
                              P_el=P_el
@@ -862,7 +862,7 @@ class ExcelComps:
         invest_args_capacity = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Kapazität [MWh]")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=comp_data.get("Fixkosten pro Jahr"),
             fund_fix=comp_data.get("Förderung pro Jahr"),
             costs_var=comp_data.get("Fixkosten pro MWh und Jahr"),
@@ -873,7 +873,7 @@ class ExcelComps:
         invest_args_flow_in = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Lade/Entladeleistung [MW]")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=None,
             fund_fix=None,
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -884,7 +884,7 @@ class ExcelComps:
         invest_args_flow_out = self.create_investArgs(
             nominal_val=handle_nom_val(comp_data.get("Lade/Entladeleistung [MW]")),
             optional=comp_data.get("Optional"),
-            startjahr=comp_data.get("Startjahr"), endjahr=comp_data.get("Endjahr"),
+            first_year=comp_data.get("Startjahr"), last_year=comp_data.get("Endjahr"),
             costs_fix=None,
             fund_fix=None,
             costs_var=comp_data.get("Fixkosten pro MW und Jahr"),
@@ -911,7 +911,7 @@ class ExcelComps:
 
         Q_in = cFlow(label="QthLoad",
                      bus=self.busses["Fernwaerme"],
-                     exists=create_exists(comp_data, self.years),
+                     exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                      nominal_val=handle_nom_val(comp_data["Lade/Entladeleistung [MW]"]),
                      max_rel=max_rel_flows,
                      investArgs=invest_args_flow_in,
@@ -922,13 +922,13 @@ class ExcelComps:
                       bus=self.busses["Fernwaerme"],
                       max_rel=max_rel_flows,
                       nominal_val=handle_nom_val(comp_data["Lade/Entladeleistung [MW]"]),
-                      exists=create_exists(comp_data, self.years),
+                      exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                       investArgs=invest_args_flow_out,
                       **kwargs
                       )
         storage = cStorage(label=comp_data["Name"],
                            group=comp_data["Gruppe"],
-                           exists=create_exists(comp_data, self.years),
+                           exists=create_exists(comp_data.get("Startjahr"), comp_data.get("Endjahr"), self.years),
                            eta_load=comp_data.get("eta_load", 1),
                            eta_unload=comp_data.get("eta_unload", 1),
                            inFlow=Q_in,
@@ -997,7 +997,7 @@ class ExcelComps:
 
         return new_kwargs
 
-    def create_investArgs(self, nominal_val, optional: bool, startjahr: int, endjahr: int,
+    def create_investArgs(self, nominal_val, optional: bool, first_year: int, last_year: int,
                           costs_fix: float, fund_fix: float, costs_var: float, fund_var: float,
                           invest_group: cEffectType = None,
                           is_flow_of_storage: bool = False) -> Union[cInvestArgs, None]:
@@ -1008,7 +1008,7 @@ class ExcelComps:
         -----------
 
         nominal_val : int, float, str, or None
-            The nominal value or capacity of the component. If a string is provided, it must be in the format "min-max" to specify a range. If None, investment size is not fixed. optional : bool True if the component allows optional investment, False otherwise. startjahr : int The starting year for the component in the calculation. endjahr : int The ending year for the component in the calculation.
+            The nominal value or capacity of the component. If a string is provided, it must be in the format "min-max" to specify a range. If None, investment size is not fixed. optional : bool True if the component allows optional investment, False otherwise. first_year : int The starting year for the component in the calculation. last_year : int The ending year for the component in the calculation.
         costs_fix : float
             Fixed costs associated with the component.
         fund_fix : float
@@ -1078,7 +1078,7 @@ class ExcelComps:
         specificCosts = {key: value for key, value in specificCosts.items() if value is not None}
 
         # How many years is the comp in the calculation?
-        multiplier = sum([1 if startjahr <= num <= endjahr else 0 for num in self.years])
+        multiplier = sum([1 if first_year <= num <= last_year else 0 for num in self.years])
         # Fallunterschiedung
         if is_flow_of_storage:
             multiplier = multiplier * 0.5  # because investment is split between the input and output flow

@@ -542,7 +542,7 @@ def get_invest_from_excel(item: dict, costs_effect: cEffectType, funding_effect:
                          min_investmentSize=min_investmentSize, max_investmentSize=max_investmentSize)
     return Invest
 
-def create_exists(item:dict, outputYears:list) -> np.ndarray:
+def create_exists(first_year:Union[int,type(None)], last_year:Union[int,type(None)], outputYears:List[int]) -> np.ndarray:
     '''
     This function was written to match the operation years of a component to the operation years of the system
     ----------
@@ -551,19 +551,19 @@ def create_exists(item:dict, outputYears:list) -> np.ndarray:
     -------
     np.ndarray
     '''
-    Startjahr = item.get("Startjahr",None)
-    Endjahr = item.get("Endjahr",None)
 
-    if Startjahr is None or Endjahr is None:
-        raise Exception("Startjahr and Endjahr must be set for " + item["label"])
-
-    # Create a new list with 1s and 0s based on the conditions
-    list_to_repeat = [1 if Startjahr <= num <= Endjahr else 0 for num in outputYears]
-
-    if len(list_to_repeat) == sum(list_to_repeat):
+    if first_year is None and last_year is None:
         return 1
+    elif first_year is None or last_year is None:
+        raise Exception("Either both or none of 'Startjahr' and 'Endjahr' must be set per Component.")
     else:
-        return np.array(repeat_elements_of_list(list_to_repeat))
+        # Create a new list with 1s and 0s based on the conditions
+        list_to_repeat = [1 if first_year <= num <= last_year else 0 for num in outputYears]
+
+        if len(list_to_repeat) == sum(list_to_repeat):
+            return 1
+        else:
+            return np.array(repeat_elements_of_list(list_to_repeat))
 
 def handle_nom_val(value_nom_val_or_cap):
     '''
