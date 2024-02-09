@@ -295,7 +295,7 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
     effects : bool
         If True, save summarized effects data, by default True.
     resample_by : str, optional
-        The time frequency for resampling data (e.g., 'D' for daily), by default "d".
+        The time frequency for resampling data (e.g., 'd' for daily), by default "d".
     custom_output_file_path : str, optional
         Custom path to save the Excel file
 
@@ -309,7 +309,7 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
     Effects are combined into one sheet
 
     """
-    print("Additional Data to Excel")
+    print("Writing Additional Data to Excel...")
 
     if custom_output_file_path == "default":
         output_file_path = calc.folder
@@ -349,7 +349,7 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
         df_effects_inv = resample_data(data_frame=df_effects_inv,target_years=calc.years, resampling_by=resample_by,resampling_method="sum")
 
         df_to_excel_w_chart(df_effects_inv, path_excel, "Effects_Inv", "diverse", "Time", style="line")
-        print("Effects finished")
+        print(f"...Effects ({resample_by}) finished")
 
 
     if buses:
@@ -360,7 +360,7 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
             data = resample_data(data_frame=data, target_years=calc.years,
                                  resampling_by=resample_by, resampling_method="mean")
             df_to_excel_w_chart(data, path_excel, bus_name, "MW", "Time")
-        print("Busses finished")
+        print(f"...Busses ({resample_by}) finished")
 
     if comps:
         filename = f"Comps_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
@@ -370,7 +370,7 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
             data = resample_data(data_frame=data, target_years=calc.years,
                                  resampling_by=resample_by, resampling_method="mean")
             df_to_excel_w_chart(data, path_excel, comp_name, "MW", "Time")
-        print("Comps finished")
+        print(f"...Comps ({resample_by}) finished")
 
 def df_to_excel_w_chart(df: pd.DataFrame, filepath: str, title: str, ylabel: str, xlabel: str, style:Literal["bar","line"]="bar"):
     """

@@ -1242,7 +1242,27 @@ class ExcelModel:
         return flixPostXL(nameOfCalc=self.calc_name,
                           results_folder=os.path.join(self.final_directory, "SolveResults"),
                           outputYears=self.years)
-    def visualize_results(self) ->flixPostXL:
+    def visualize_results(self, overview:bool=True, annual_results:bool=True,
+                          buses_daily:bool=True, comps_daily:bool=True, effects_daily:bool=True,
+                          buses_hourly:bool=False, comps_hourly:bool=False, effects_hourly:bool=False) ->flixPostXL:
+        """
+        Visualizes the results of the calculation.
+        Take Care. Writing Hourly data to excel takes a long time.
+
+        Parameters:
+        - overview (bool): Whether to generate overview graphics. Default is True.
+        - annual_results (bool): Whether to generate annual results graphics. Default is True.
+        - buses_daily (bool): Whether to generate daily results for buses. Default is True.
+        - comps_daily (bool): Whether to generate daily results for components. Default is True.
+        - effects_daily (bool): Whether to generate daily results for effects. Default is True.
+        - buses_hourly (bool): Whether to generate hourly results for buses. Default is False.
+        - comps_hourly (bool): Whether to generate hourly results for components. Default is False.
+        - effects_hourly (bool): Whether to generate hourly results for effects. Default is False.
+
+        Returns:
+        - flixPostXL: The calculated results.
+        """
+
         calc_results = self.load_results()
 
         main_results = calc_results.infos["modboxes"]["info"][0]["main_results"]
@@ -1254,9 +1274,16 @@ class ExcelModel:
         from flixOptExcel.Evaluation.graphics_excel import (run_excel_graphics_main,
                                                             run_excel_graphics_years,
                                                             save_in_n_outputs_per_comp_and_bus_and_effects)
-        run_excel_graphics_main(calc_results)
-        run_excel_graphics_years(calc_results)
-        save_in_n_outputs_per_comp_and_bus_and_effects(calc_results, buses=True, comps=True, effects=True, resample_by="D")
+        if overview: run_excel_graphics_main(calc_results)
+        if annual_results: run_excel_graphics_years(calc_results)
+        if any([buses_daily, comps_daily, effects_daily]):
+            save_in_n_outputs_per_comp_and_bus_and_effects(calc_results,
+                                                           buses=buses_daily, comps=comps_daily, effects=effects_daily,
+                                                           resample_by="d")
+        if any([buses_hourly, comps_hourly, effects_hourly]):
+            save_in_n_outputs_per_comp_and_bus_and_effects(calc_results,
+                                                           buses=buses_hourly, comps=comps_hourly, effects=effects_hourly,
+                                                           resample_by="h")
 
         return calc_results
 
