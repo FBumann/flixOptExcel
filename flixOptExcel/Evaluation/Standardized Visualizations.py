@@ -27,7 +27,7 @@ class _cGraficData(dict):
         self['infos']["color_map"] = color_map
 
     # TODO: Create a function that plots the data and saves it in a custom location.
-    def plot(self, sample_rate: Literal["Y", "D", "H"], path_to_save: str = None,
+    def plot(self, sample_rate: Literal["YE", "d", "h"], path_to_save: str = None,
              # style:Literal['line', 'bar', 'barh'],
              # type:Literal['HTML','png']
 
@@ -94,7 +94,7 @@ class cGraficDataExcel(_cGraficData):
 
         data = {}
         # Resampling of the data
-        for sample_rate in ("H", "D", "Y"):
+        for sample_rate in ("h", "d", "YE"):
             df_summed = resample_data(df_fernwaerme_last, self.calc1.years, sample_rate, "mean")
             df_verluste_summed = (df_summed['Waermelast_Netzverluste_Qth'] / df_summed.sum(axis=1) * 100).rename(
                 "Verlust[%]")
@@ -126,7 +126,7 @@ class cGraficDataExcel(_cGraficData):
 
         # Resampling of the data, if possible in a loop
         data = {}
-        for sample_rate in ("H", "D", "Y"):
+        for sample_rate in ("h", "d", "YE"):
             data[sample_rate] = resample_data(df, self.calc1.years, sample_rate, "mean")
 
         # information about the data

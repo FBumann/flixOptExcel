@@ -8,28 +8,28 @@ from typing import Literal, List, Union
 from flixOptExcel.Evaluation.flixPostprocessingXL import flixPostXL
 
 
-def resample_data(data_frame: Union[pd.DataFrame, np.ndarray], target_years: List[int], resampling_by: Literal["Y", "D", "H"],
-                   resampling_method: Literal["sum", "mean", "min","max"], initial_sampling_rate: str = "H") -> pd.DataFrame:
+def resample_data(data_frame: Union[pd.DataFrame, np.ndarray], target_years: List[int], resampling_by: Literal["YE", "d", "h"],
+                   resampling_method: Literal["sum", "mean", "min","max"], initial_sampling_rate: str = "h") -> pd.DataFrame:
     '''
     Parameters
     ----------
     data_frame : Union[pd.DataFrame, np.ndarray]
         DataFrame or array containing data. Number of rows must match the initial sampling rate (safety check):
-        8760 ("H") (default) or 365 ("D") per year.
+        8760 ("h") (default) or 365 ("d") per year.
     target_years : List[int]
         Target years for the new index of the DataFrame
     resampling_by : str
-        "H" for hourly resampling
-        "D" for daily resampling
-        "Y" for yearly resampling
+        "h" for hourly resampling
+        "d" for daily resampling
+        "YE" for yearly resampling
     resampling_method : str
         "mean" for mean value
         "sum" for sum value
         "max" for max value
         "min" for min value
     initial_sampling_rate : str
-        "H" for hourly data (8760 values per year)
-        "D" for daily data (365 values per year)
+        "h" for hourly data (8760 values per year)
+        "d" for daily data (365 values per year)
 
     Returns
     -------
@@ -38,9 +38,9 @@ def resample_data(data_frame: Union[pd.DataFrame, np.ndarray], target_years: Lis
     df = pd.DataFrame(data_frame)
     df.index = range(len(df))  # reset index
 
-    if len(df)/8760 == len(target_years) and initial_sampling_rate == "H":
+    if len(df)/8760 == len(target_years) and initial_sampling_rate == "h":
         length_per_year = 8760
-    elif len(df)/365 == len(target_years) and initial_sampling_rate == "D":
+    elif len(df)/365 == len(target_years) and initial_sampling_rate == "d":
         length_per_year = 365
     else:
         raise ValueError("length of dataframe and initial_sampling_rate must match: "
@@ -73,27 +73,27 @@ def resample_data(data_frame: Union[pd.DataFrame, np.ndarray], target_years: Lis
 
     df = df.loc[~((df.index.month == 2) & (df.index.day == 29))]  # Remove leap year days again
 
-    if resampling_by == "Y":
+    if resampling_by == "YE":
         df = df.set_index(df.index.year)  # setting the index to the plain year. No datetime anymore
 
     return df
 
-def rs_in_two_steps(data_frame: Union[pd.DataFrame, np.ndarray], target_years: List[int], resampling_by: Literal["D", "Y"],
-                    initial_sampling_rate: str = "H") -> pd.DataFrame:
+def rs_in_two_steps(data_frame: Union[pd.DataFrame, np.ndarray], target_years: List[int], resampling_by: Literal["d", "YE"],
+                    initial_sampling_rate: str = "h") -> pd.DataFrame:
     '''
     Parameters
     ----------
     data_frame : Union[pd.DataFrame, np.ndarray]
         DataFrame or array containing data. Number of rows must match the initial sampling rate (safety check):
-        8760 ("H") (default) or 365 ("D") per year.
+        8760 ("h") (default) or 365 ("d") per year.
     target_years : List[int]
         Years for resampling
     resampling_by : str
-        "D" for daily resampling
-        "Y" for yearly resampling
+        "d" for daily resampling
+        "YE" for yearly resampling
     initial_sampling_rate : str
-        "H" for hourly data
-        "D" for daily data
+        "h" for hourly data
+        "d" for daily data
     Returns
     -------
     pd.DataFrame
@@ -105,11 +105,11 @@ def rs_in_two_steps(data_frame: Union[pd.DataFrame, np.ndarray], target_years: L
     '''
 
     # Determine base resampling method and new columns based on resampling_by
-    if resampling_by == "D":
-        rs_method_base = "H"
+    if resampling_by == "d":
+        rs_method_base = "h"
         new_columns = ["Tagesmittel", "Minimum (Stunde)", "Maximum (Stunde)"]
-    elif resampling_by == "Y":
-        rs_method_base = "D"
+    elif resampling_by == "YE":
+        rs_method_base = "d"
         new_columns = ["Jahresmittel", "Minimum (Tagesmittel)", "Maximum (Tagesmittel)"]
     else:
         raise ValueError("Invalid value for resampling_by. Use 'D' for daily or 'Y' for yearly.")

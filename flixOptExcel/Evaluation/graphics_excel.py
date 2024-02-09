@@ -64,39 +64,39 @@ def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "de
     excel = cExcelFcts(calc)
 
     with pd.ExcelWriter(path_excel_main, mode="a", engine="openpyxl", if_sheet_exists='overlay') as writer:
-        df = excel.get_fernwaerme_last_and_loss("Y", "sum")
+        df = excel.get_fernwaerme_last_and_loss("YE", "sum")
         df.to_excel(writer, index=True, sheet_name="Waermelast und Verluste")
 
-        df = excel.get_costs_and_funding("Y")
+        df = excel.get_costs_and_funding("YE")
         df.to_excel(writer, index=True, sheet_name="Kostenübersicht")
 
-        df = excel.get_fernwaerme_erz("Y", "mean")
+        df = excel.get_fernwaerme_erz("YE", "mean")
         df.to_excel(writer, index=True, sheet_name="Wärmeerzeugung")
 
-        df = excel.get_installierte_leistung(resamply_by="Y", rs_method="mean", flows=True, storage_capacity=False,
+        df = excel.get_installierte_leistung(resamply_by="YE", rs_method="mean", flows=True, storage_capacity=False,
                                              grouped=True, actual_storage_capacity=False)
         df.to_excel(writer, index=True, sheet_name="Installierte Leistung")
 
-        df = excel.get_waermekosten(with_fix_costs=True, resamply_by="Y")
+        df = excel.get_waermekosten(with_fix_costs=True, resamply_by="YE")
         df.to_excel(writer, index=True, sheet_name="Wärmevollkosten")
 
-        df = excel.get_waermekosten(with_fix_costs=False, resamply_by="Y")
+        df = excel.get_waermekosten(with_fix_costs=False, resamply_by="YE")
         df.to_excel(writer, index=True, sheet_name="Wärmekosten Variabel")
 
-        df = excel.get_emissions(resamply_by="Y", rs_method="sum")
+        df = excel.get_emissions(resamply_by="YE", rs_method="sum")
         df.to_excel(writer, index=True, sheet_name="Emissionen")
 
-        df = excel.get_eingesetzte_energietraeger(resamply_by="Y", rs_method="mean")
+        df = excel.get_eingesetzte_energietraeger(resamply_by="YE", rs_method="mean")
         df.to_excel(writer, index=True, sheet_name="Energieträger")
 
-        df = excel.get_stromerzeugung(resamply_by="Y")
+        df = excel.get_stromerzeugung(resamply_by="YE")
         df.to_excel(writer, index=True, sheet_name="Stromerzeugung")
 
-        df_speicher_kapazitaet_Y = excel.get_speicher_kapazitaet(resamply_by="Y",
+        df_speicher_kapazitaet_Y = excel.get_speicher_kapazitaet(resamply_by="YE",
                                                                  grouped=True, actual_storage_capacity=False)
         df_speicher_kapazitaet_Y.to_excel(writer, index=True, sheet_name="Speicherkapazität")
 
-        df_speicher_fuellstand_sum_H = excel.get_speicher_fuellstand("H", "mean", allocated=True).reset_index(drop=True)
+        df_speicher_fuellstand_sum_H = excel.get_speicher_fuellstand("h", "mean", allocated=True).reset_index(drop=True)
         df_speicher_fuellstand_sum_H.to_excel(writer, index=True, sheet_name="Speicher Summen")
 
     print("Jahresvergleich Plots to Excel finished")
@@ -162,34 +162,34 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
     # computation for the whole calculation
 
-    df_fernwaerme_erz_nach_techn_D = excel.get_fernwaerme_erz(resamply_by="D", rs_method="mean")  # Wärmeerzeugung
+    df_fernwaerme_erz_nach_techn_D = excel.get_fernwaerme_erz(resamply_by="d", rs_method="mean")  # Wärmeerzeugung
 
-    df_installierte_leistung_Y = excel.get_installierte_leistung(resamply_by="Y", rs_method="mean", flows=True,
+    df_installierte_leistung_Y = excel.get_installierte_leistung(resamply_by="YE", rs_method="mean", flows=True,
                                                                  storage_capacity=False,
                                                                  grouped=True, actual_storage_capacity=False)
 
-    df_waermekosten_vollkosten_D = excel.get_waermekosten(with_fix_costs=True, resamply_by="D")
+    df_waermekosten_vollkosten_D = excel.get_waermekosten(with_fix_costs=True, resamply_by="d")
 
-    df_waermekosten_varCosts_D = excel.get_waermekosten(with_fix_costs=False, resamply_by="D")
+    df_waermekosten_varCosts_D = excel.get_waermekosten(with_fix_costs=False, resamply_by="d")
 
-    df_emissions_D = excel.get_emissions(resamply_by="D", rs_method="sum")
+    df_emissions_D = excel.get_emissions(resamply_by="d", rs_method="sum")
 
-    df_eingesetzte_energietraeger_D = excel.get_eingesetzte_energietraeger(resamply_by="D", rs_method="mean")
+    df_eingesetzte_energietraeger_D = excel.get_eingesetzte_energietraeger(resamply_by="d", rs_method="mean")
 
-    df_stromerzeugung_D = excel.get_stromerzeugung(resamply_by="D")
+    df_stromerzeugung_D = excel.get_stromerzeugung(resamply_by="d")
 
-    df_speicher_kapazitaet_D = excel.get_speicher_kapazitaet(resamply_by="D",
+    df_speicher_kapazitaet_D = excel.get_speicher_kapazitaet(resamply_by="d",
                                                              grouped=True, actual_storage_capacity=True)
 
-    df_speicher_fuellstand_D = excel.get_speicher_fuellstand("D", "mean", allocated=False)
+    df_speicher_fuellstand_D = excel.get_speicher_fuellstand("d", "mean", allocated=False)
 
-    df_speicher_flows_D = excel.get_speicher_flows("D", "mean", allocated=False)
+    df_speicher_flows_D = excel.get_speicher_flows("d", "mean", allocated=False)
 
     print("Computation of data  for short version finished")
     if not short_version:
-        df_fernwaerme_erz_nach_techn_H = excel.get_fernwaerme_erz(resamply_by="H", rs_method="mean")
-        df_speicher_fuellstand_H = excel.get_speicher_fuellstand("H", "mean", allocated=False)
-        df_speicher_fuellstand_H_alloc = excel.get_speicher_fuellstand("H", "mean", allocated=True)
+        df_fernwaerme_erz_nach_techn_H = excel.get_fernwaerme_erz(resamply_by="h", rs_method="mean")
+        df_speicher_fuellstand_H = excel.get_speicher_fuellstand("h", "mean", allocated=False)
+        df_speicher_fuellstand_H_alloc = excel.get_speicher_fuellstand("h", "mean", allocated=True)
 
     # TODO: weitere Grafiken
 
@@ -280,7 +280,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
 def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
                                                    buses:bool=True, comps:bool=True, effects:bool = True,
-                                                   resample_by:str="D", custom_output_file_path: str = "default"):
+                                                   resample_by:str="d", custom_output_file_path: str = "default"):
     """
     Save the in- and out-flows of every Comp and every bus to an Excel file.
 
@@ -295,7 +295,7 @@ def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
     effects : bool
         If True, save summarized effects data, by default True.
     resample_by : str, optional
-        The time frequency for resampling data (e.g., 'D' for daily), by default "D".
+        The time frequency for resampling data (e.g., 'D' for daily), by default "d".
     custom_output_file_path : str, optional
         Custom path to save the Excel file
 
@@ -481,12 +481,12 @@ class cExcelFcts():
         Parameters
         ----------
         resamply_by : string
-            "H" for hourly resampling
-            "D" for daily resampling
-            "Y" for yearly resampling
+            "h" for hourly resampling
+            "d" for daily resampling
+            "YE" for yearly resampling
 
-            if "D", Strompreis and Wärmelast are added to the DataFrame in first and second column
-            if "Y", Wärmelast and sorages are not included
+            if "d", Strompreis and Wärmelast are added to the DataFrame in first and second column
+            if "YE", Wärmelast and sorages are not included
         rs_method : string
             "mean" for mean value
             "sum" for sum value
@@ -498,7 +498,7 @@ class cExcelFcts():
         pd.DataFrame
         '''
 
-        if resamply_by == "Y":
+        if resamply_by == "YE":
             df_fernwaerme = self.calc.to_dataFrame("Fernwaerme", "in", grouped=False)  # ohne Wärmelast, ohne Speicher
             df_fernwaerme.drop(columns=df_fernwaerme.filter(regex=r'^Speicher', axis=1).columns, axis=1, inplace=True)
             df_fernwaerme_grouped = self.calc.group_df_by_mapping(df_fernwaerme)
@@ -522,9 +522,9 @@ class cExcelFcts():
         calc1 : flix_results
             Calculation Object
         resamply_by : string
-            "H" for hourly resampling
-            "D" for daily resampling
-            "Y" for yearly resampling
+            "h" for hourly resampling
+            "d" for daily resampling
+            "YE" for yearly resampling
 
         Returns
         -------
@@ -544,9 +544,9 @@ class cExcelFcts():
         Parameters
         ----------
         resamply_by : string
-            "H" for hourly resampling
-            "D" for daily resampling
-            "Y" for yearly resampling
+            "h" for hourly resampling
+            "d" for daily resampling
+            "YE" for yearly resampling
         rs_method : string
             "mean" for mean value
             "sum" for sum value
@@ -567,11 +567,11 @@ class cExcelFcts():
                                     index=self.calc.timeSeries)
 
         # Unterschiedung zwischen Resampling
-        if resamply_by == "D":
-            rs_method_base = "H"
+        if resamply_by == "d":
+            rs_method_base = "h"
             new_columns = ["Tagesmittel", "Minimum (Stunde)", "Maximum (Stunde)"]
-        elif resamply_by == "Y":
-            rs_method_base = "D"
+        elif resamply_by == "YE":
+            rs_method_base = "d"
             new_columns = ["Jahresmittel", "Minimum (Tagesmittel)", "Maximum (Tagesmittel)"]
         else:
             raise ValueError(f"not implemented for resamply_by parameter: '{resamply_by}'")
@@ -599,9 +599,9 @@ class cExcelFcts():
         Parameters
         ----------
         resamply_by : string
-            "H" for hourly resampling
-            "D" for daily resampling
-            "Y" for yearly resampling
+            "h" for hourly resampling
+            "d" for daily resampling
+            "YE" for yearly resampling
         rs_method : string
             "mean" for mean value
             "sum" for sum value
@@ -630,9 +630,9 @@ class cExcelFcts():
         Parameters
         ----------
         resamply_by : string
-            "H" for hourly resampling
-            "D" for daily resampling
-            "Y" for yearly resampling
+            "h" for hourly resampling
+            "d" for daily resampling
+            "YE" for yearly resampling
         rs_method : string
             "mean" for mean value
             "sum" for sum value
@@ -654,9 +654,9 @@ class cExcelFcts():
         Parameters
         ----------
         resamply_by : string
-            "H" for hourly resampling
-            "D" for daily resampling
-            "Y" for yearly resampling
+            "h" for hourly resampling
+            "d" for daily resampling
+            "YE" for yearly resampling
         rs_method : string
             "mean" for mean value
             "sum" for sum value
@@ -666,11 +666,11 @@ class cExcelFcts():
         Returns
         -------
         resampled DataFrame with new columns:
-            if resamply_by = "D": ["Tagesmittel", "Minimum (Stunde)", "Maximum (Stunde)"]
-            if resamply_by = "Y": ["Jahresmittel", "Minimum (Tagesmittel)", "Maximum (Tagesmittel)"],
+            if resamply_by = "d": ["Tagesmittel", "Minimum (Stunde)", "Maximum (Stunde)"]
+            if resamply_by = "YE": ["Jahresmittel", "Minimum (Tagesmittel)", "Maximum (Tagesmittel)"],
         '''
         df_stromerzeugung = self.calc.to_dataFrame("StromEinspeisung", "out",invert_Output=False)
-        df = rs_in_two_steps(df_stromerzeugung, self.calc.years, resamply_by, "H")
+        df = rs_in_two_steps(df_stromerzeugung, self.calc.years, resamply_by, "h")
 
         return df
 
@@ -679,9 +679,9 @@ class cExcelFcts():
         Parameters
         ----------
         resamply_by : string
-            "H" for hourly resampling
-            "D" for daily resampling
-            "Y" for yearly resampling
+            "h" for hourly resampling
+            "d" for daily resampling
+            "YE" for yearly resampling
 
         Returns
         -------
@@ -705,9 +705,9 @@ class cExcelFcts():
         Parameters
         ----------
         resamply_by : string
-            "H" for hourly resampling
-            "D" for daily resampling
-            "Y" for yearly resampling
+            "h" for hourly resampling
+            "d" for daily resampling
+            "YE" for yearly resampling
         rs_method : string
             "mean" for mean value
             "sum" for sum value
@@ -756,9 +756,9 @@ class cExcelFcts():
         Parameters
         ----------
         resamply_by : string
-            "H" for hourly resampling
-            "D" for daily resampling
-            "Y" for yearly resampling
+            "h" for hourly resampling
+            "d" for daily resampling
+            "YE" for yearly resampling
         rs_method : string
             "mean" for mean value
             "sum" for sum value
