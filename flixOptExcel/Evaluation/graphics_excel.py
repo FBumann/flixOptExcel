@@ -49,7 +49,7 @@ def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "de
     ```
 
     """
-    print("Jahresvergleich Plots to Excel")
+    print("Overview Plots to Excel...")
 
     if custom_output_file_path == "default":
         output_file_path = calc.folder
@@ -99,7 +99,7 @@ def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "de
         df_speicher_fuellstand_sum_H = excel.get_speicher_fuellstand("h", "mean", allocated=True).reset_index(drop=True)
         df_speicher_fuellstand_sum_H.to_excel(writer, index=True, sheet_name="Speicher Summen")
 
-    print("Jahresvergleich Plots to Excel finished")
+    print("...Overview Plots to Excel finished")
 
 
 def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_output_file_path: str = "default"):
@@ -157,7 +157,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
     else:
         output_file_path = custom_output_file_path
 
-    print("Jahresdetails Plots to Excel")
+    print("Annual Plots to Excel...")
     excel = cExcelFcts(calc)
 
     # computation for the whole calculation
@@ -185,7 +185,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
     df_speicher_flows_D = excel.get_speicher_flows("d", "mean", allocated=False)
 
-    print("Computation of data  for short version finished")
+    print("......computation of data for short version finished")
     if not short_version:
         df_fernwaerme_erz_nach_techn_H = excel.get_fernwaerme_erz(resamply_by="h", rs_method="mean")
         df_speicher_fuellstand_H = excel.get_speicher_fuellstand("h", "mean", allocated=False)
@@ -193,7 +193,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
     # TODO: weitere Grafiken
 
-    print("Computation of data finished")
+    print("...computation of data finished")
 
     for index, year in enumerate(excel.calc.years):
         wb = load_workbook(calc.templ_path_excel_year)
@@ -247,7 +247,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
             df.sort_values("Wärmelast_mit_Verlust", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last-D")
             df.sort_values("Strompreis", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Strom-D")
 
-            print(f"Year-{year}: Short Version written")
+            print(f"......Year-{year}: Short Version written")
             if not short_version:
                 # Wärmeerzeugung als Jahresdauerlinien (Stundenwerte)
                 df = df_fernwaerme_erz_nach_techn_H[df_fernwaerme_erz_nach_techn_H.index.year == year]
@@ -272,11 +272,11 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
                 # Speicherfüllstand (Stundenwerte) nicht allokiert
                 df = df_speicher_fuellstand_H[df_speicher_fuellstand_H.index.year == year]
                 df.to_excel(writer, index=True, sheet_name="Speicherfüllstand H")
-                print(f"Year-{year}: Long Version written")
+            print(f"...Year-{year}: Annual Plots  to Excel finished")
 
             # TODO: weitere Grafiken
 
-    print("Writing to excel finished - for Jahresdetails Plots")
+    print("...All Annual Plots  to Excel finished")
 
 def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
                                                    buses:bool=True, comps:bool=True, effects:bool = True,
