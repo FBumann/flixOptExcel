@@ -2,4 +2,4 @@
 venv/
 .DS_Store
 flixOptExcel.egg-info/
-Testing/
+tests/results/
