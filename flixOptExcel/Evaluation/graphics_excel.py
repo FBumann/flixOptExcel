@@ -4,7 +4,7 @@ import os.path
 from openpyxl import load_workbook
 from openpyxl.chart import BarChart, Reference,LineChart
 from openpyxl.utils.dataframe import dataframe_to_rows
-from typing import Literal
+from typing import Literal, Union
 
 from flixOptExcel.Evaluation.flixPostprocessingXL import flixPostXL
 from flixOptExcel.Evaluation.HelperFcts_post import resample_data, rs_in_two_steps, getFuelCosts, reorder_columns
@@ -193,7 +193,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
     # TODO: weitere Grafiken
 
-    print("...computation of data finished")
+    print("......computation of data finished")
 
     for index, year in enumerate(excel.calc.years):
         wb = load_workbook(calc.templ_path_excel_year)
@@ -247,7 +247,7 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
             df.sort_values("Wärmelast_mit_Verlust", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last-D")
             df.sort_values("Strompreis", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Strom-D")
 
-            print(f"......Year-{year}: Short Version written")
+            print(f"......Year-{year} finished (short version)")
             if not short_version:
                 # Wärmeerzeugung als Jahresdauerlinien (Stundenwerte)
                 df = df_fernwaerme_erz_nach_techn_H[df_fernwaerme_erz_nach_techn_H.index.year == year]
@@ -272,105 +272,139 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
                 # Speicherfüllstand (Stundenwerte) nicht allokiert
                 df = df_speicher_fuellstand_H[df_speicher_fuellstand_H.index.year == year]
                 df.to_excel(writer, index=True, sheet_name="Speicherfüllstand H")
-            print(f"...Year-{year}: Annual Plots  to Excel finished")
+            print(f"...Year-{year} finished")
 
             # TODO: weitere Grafiken
 
-    print("...All Annual Plots  to Excel finished")
+    print("...Annual Plots to Excel finished")
 
-def save_in_n_outputs_per_comp_and_bus_and_effects(calc: flixPostXL,
-                                                   buses:bool=True, comps:bool=True, effects:bool = True,
-                                                   resample_by:str="d", custom_output_file_path: str = "default"):
+def write_bus_results_to_excel(calc: flixPostXL, resample_by:Union["YE", "d", "h"] = "d",
+                               custom_output_file_path: str = "default"):
     """
-    Save the in- and out-flows of every Comp and every bus to an Excel file.
+    Save the in- and out-flows of every bus to an Excel file.
 
     Parameters
     ----------
     calc : flixPostXL
         The flixPostXL object containing the calculation results.
-    buses : bool
-        If True, save data for each bus, by default True.
-    comps : bool
-        If True, save data for each Comp, by default True.
-    effects : bool
-        If True, save summarized effects data, by default True.
     resample_by : str, optional
         The time frequency for resampling data (e.g., 'd' for daily), by default "d".
+        Allowed values are 'YE' (yearly), 'd' (daily), and 'h' (hourly).
     custom_output_file_path : str, optional
         Custom path to save the Excel file
 
     Returns
     -------
     None
-
-    Notes
-    -----
-    The function saves in- and out-flows data to an Excel file with separate sheets for every bus and comp.
-    Effects are combined into one sheet
-
     """
-    print("Writing Additional Data to Excel...")
+    print(f"...Writing Bus Results ({resample_by}) to Excel...")
 
     if custom_output_file_path == "default":
         output_file_path = calc.folder
     else:
         output_file_path = custom_output_file_path
 
-    filename = f"Zusatzinfo_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
+    filename = f"Buses_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
     path_excel = os.path.join(output_file_path, filename)
 
-    if effects:
-        filename = f"Effects_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
-        path_excel = os.path.join(output_file_path, filename)
-        df_effects_sum = pd.DataFrame()
-        for effect_name, effect in calc.results["globalComp"].items():
-            if effect_name == "penalty":
-                continue
-            df_effects_sum[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="all", as_TS=True,shares=False)
-        df_effects_sum = resample_data(data_frame=df_effects_sum,target_years=calc.years, resampling_by=resample_by,resampling_method="sum")
+    for bus_name in calc.buses:
+        data = calc.to_dataFrame(busOrComp=bus_name, direction="inout", invert_Output=True) * -1
+        data = resample_data(data_frame=data, target_years=calc.years, resampling_by=resample_by, resampling_method="mean")
+        df_to_excel_w_chart(data, path_excel, bus_name, "MW", "Time")
 
-        df_to_excel_w_chart(df_effects_sum, path_excel, "Effects_SUM", "See Legend", "Time", style="line")
+    print(f"......Buses ({resample_by}) finished")
 
+def write_component_results_to_excel(calc: flixPostXL, resample_by:Union["YE", "d", "h"] = "d",
+                                     custom_output_file_path: str = "default"):
+    """
+    Save the in- and out-flows of every component to an Excel file.
 
-        df_effects_op = pd.DataFrame()
-        for effect_name, effect in calc.results["globalComp"].items():
-            if effect_name == "penalty":
-                continue
-            df_effects_op[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="operation", as_TS=True,shares=False)
-        df_effects_op = resample_data(data_frame=df_effects_op,target_years=calc.years, resampling_by=resample_by,resampling_method="sum")
+    Parameters
+    ----------
+    calc : flixPostXL
+        The flixPostXL object containing the calculation results.
+    resample_by : str, optional
+        The time frequency for resampling data (e.g., 'd' for daily), by default "d".
+        Allowed values are 'YE' (yearly), 'd' (daily), and 'h' (hourly).
+    custom_output_file_path : str, optional
+        Custom path to save the Excel file
 
-        df_to_excel_w_chart(df_effects_op, path_excel, "Effects_OP", "diverse", "Time", style="line")
+    Returns
+    -------
+    None
+    """
+    print(f"...Writing Components Results ({resample_by}) to Excel...")
 
-        df_effects_inv = pd.DataFrame()
-        for effect_name, effect in calc.results["globalComp"].items():
-            if effect_name == "penalty":
-                continue
-            df_effects_inv[effect_name] =calc.get_effect_results(effect_name=effect_name, origin="invest", as_TS=True, shares=False)
-        df_effects_inv = resample_data(data_frame=df_effects_inv,target_years=calc.years, resampling_by=resample_by,resampling_method="sum")
+    if custom_output_file_path == "default":
+        output_file_path = calc.folder
+    else:
+        output_file_path = custom_output_file_path
 
-        df_to_excel_w_chart(df_effects_inv, path_excel, "Effects_Inv", "diverse", "Time", style="line")
-        print(f"...Effects ({resample_by}) finished")
+    filename = f"Comps_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
+    path_excel = os.path.join(output_file_path, filename)
 
+    for comp_name in calc.comps:
+        data = calc.to_dataFrame(busOrComp=comp_name, direction="inout", invert_Output=True) * -1
+        data = resample_data(data_frame=data, target_years=calc.years, resampling_by=resample_by, resampling_method="mean")
+        df_to_excel_w_chart(data, path_excel, comp_name, "MW", "Time")
 
-    if buses:
-        filename = f"Buses_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
-        path_excel = os.path.join(output_file_path, filename)
-        for bus_name in calc.buses:
-            data = calc.to_dataFrame(busOrComp=bus_name, direction="inout",invert_Output=True)*-1
-            data = resample_data(data_frame=data, target_years=calc.years,
-                                 resampling_by=resample_by, resampling_method="mean")
-            df_to_excel_w_chart(data, path_excel, bus_name, "MW", "Time")
-        print(f"...Busses ({resample_by}) finished")
+    print(f"......Components ({resample_by}) finished")
 
-    if comps:
-        filename = f"Comps_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
-        path_excel = os.path.join(output_file_path, filename)
-        for comp_name in calc.comps:
-            data = calc.to_dataFrame(busOrComp=comp_name, direction="inout",invert_Output=True)*-1
-            data = resample_data(data_frame=data, target_years=calc.years,
-                                 resampling_by=resample_by, resampling_method="mean")
-            df_to_excel_w_chart(data, path_excel, comp_name, "MW", "Time")
-        print(f"...Comps ({resample_by}) finished")
+def write_effect_results_to_excel(calc: flixPostXL, resample_by:Union["YE", "d", "h"] = "d",
+                                  custom_output_file_path: str = "default"):
+    """
+    Save summarized effects data to an Excel file.
+
+    Parameters
+    ----------
+    calc : flixPostXL
+        The flixPostXL object containing the calculation results.
+    resample_by : str, optional
+        The time frequency for resampling data (e.g., 'd' for daily), by default "d".
+        Allowed values are 'YE' (yearly), 'd' (daily), and 'h' (hourly).
+    custom_output_file_path : str, optional
+        Custom path to save the Excel file
+
+    Returns
+    -------
+    None
+    """
+    print(f"...Writing Effects Results ({resample_by}) to Excel...")
+
+    if custom_output_file_path == "default":
+        output_file_path = calc.folder
+    else:
+        output_file_path = custom_output_file_path
+
+    filename = f"Effects_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
+    path_excel = os.path.join(output_file_path, filename)
+
+    df_effects_sum = pd.DataFrame()
+    for effect_name, effect in calc.results["globalComp"].items():
+        if effect_name == "penalty":
+            continue
+        df_effects_sum[effect_name] = calc.get_effect_results(effect_name=effect_name, origin="all", as_TS=True, shares=False)
+    df_effects_sum = resample_data(data_frame=df_effects_sum, target_years=calc.years, resampling_by=resample_by, resampling_method="sum")
+    df_to_excel_w_chart(df_effects_sum, path_excel, "Effects_SUM", "See Legend", "Time", style="line")
+
+    df_effects_op = pd.DataFrame()
+    for effect_name, effect in calc.results["globalComp"].items():
+        if effect_name == "penalty":
+            continue
+        df_effects_op[effect_name] = calc.get_effect_results(effect_name=effect_name, origin="operation", as_TS=True, shares=False)
+    df_effects_op = resample_data(data_frame=df_effects_op, target_years=calc.years, resampling_by=resample_by, resampling_method="sum")
+    df_to_excel_w_chart(df_effects_op, path_excel, "Effects_OP", "diverse", "Time", style="line")
+
+    df_effects_inv = pd.DataFrame()
+    for effect_name, effect in calc.results["globalComp"].items():
+        if effect_name == "penalty":
+            continue
+        df_effects_inv[effect_name] = calc.get_effect_results(effect_name=effect_name, origin="invest", as_TS=True, shares=False)
+    df_effects_inv = resample_data(data_frame=df_effects_inv, target_years=calc.years, resampling_by=resample_by, resampling_method="sum")
+    df_to_excel_w_chart(df_effects_inv, path_excel, "Effects_Inv", "diverse", "Time", style="line")
+
+    print(f"......Effects ({resample_by}) finished")
+
 
 def df_to_excel_w_chart(df: pd.DataFrame, filepath: str, title: str, ylabel: str, xlabel: str, style:Literal["bar","line"]="bar"):
     """
