@@ -1243,6 +1243,7 @@ class ExcelModel:
                           results_folder=os.path.join(self.final_directory, "SolveResults"),
                           outputYears=self.years)
     def visualize_results(self, overview:bool=True, annual_results:bool=True,
+                          buses_yearly: bool=True, comps_yearly:bool=True, effects_yearly:bool=True,
                           buses_daily:bool=True, comps_daily:bool=True, effects_daily:bool=True,
                           buses_hourly:bool=False, comps_hourly:bool=False, effects_hourly:bool=False) ->flixPostXL:
         """
@@ -1271,14 +1272,17 @@ class ExcelModel:
           big Models with many Components.
 
         Parameters:
-            overview (bool): Whether to generate overview graphics. Default is True.
-            annual_results (bool): Whether to generate annual results graphics. Default is True.
-            buses_daily (bool): Whether to generate daily results for buses. Default is True.
-            comps_daily (bool): Whether to generate daily results for components. Default is True.
-            effects_daily (bool): Whether to generate daily results for effects. Default is True.
-            buses_hourly (bool): Whether to generate hourly results for buses. Default is False.
-            comps_hourly (bool): Whether to generate hourly results for components. Default is False.
-            effects_hourly (bool): Whether to generate hourly results for effects. Default is False.
+            overview (bool): Whether to write overview graphics. Default is True.
+            annual_results (bool): Whether to write annual results graphics. Default is True.
+            buses_yearly (bool): Whether to write annual results for buses to excel. Default is True.
+            comps_yearly (bool): Whether to write annual results for components to excel. Default is True.
+            effects_yearly (bool): Whether to write annual results for effects to excel. Default is True.
+            buses_daily (bool): Whether to write daily results for buses to excel. Default is True.
+            comps_daily (bool): Whether to write daily results for components to excel. Default is True.
+            effects_daily (bool): Whether to write daily results for effects to excel. Default is True.
+            buses_hourly (bool): Whether to write hourly results for buses to excel. Default is False.
+            comps_hourly (bool): Whether to write hourly results for components to excel. Default is False.
+            effects_hourly (bool): Whether to write hourly results for effects to excel. Default is False.
 
         Returns:
             flixPostXL: The calculated results.
@@ -1294,17 +1298,30 @@ class ExcelModel:
 
         from flixOptExcel.Evaluation.graphics_excel import (run_excel_graphics_main,
                                                             run_excel_graphics_years,
-                                                            save_in_n_outputs_per_comp_and_bus_and_effects)
+                                                            write_bus_results_to_excel,
+                                                            write_effect_results_to_excel,
+                                                            write_component_results_to_excel)
+        print("START: EXPORT OF RESULTS TO EXCEL...")
         if overview: run_excel_graphics_main(calc_results)
         if annual_results: run_excel_graphics_years(calc_results)
-        if any([buses_daily, comps_daily, effects_daily]):
-            save_in_n_outputs_per_comp_and_bus_and_effects(calc_results,
-                                                           buses=buses_daily, comps=comps_daily, effects=effects_daily,
-                                                           resample_by="d")
-        if any([buses_hourly, comps_hourly, effects_hourly]):
-            save_in_n_outputs_per_comp_and_bus_and_effects(calc_results,
-                                                           buses=buses_hourly, comps=comps_hourly, effects=effects_hourly,
-                                                           resample_by="h")
+
+        print("Writing Results to Excel (YE)...")
+        if buses_yearly: write_bus_results_to_excel(calc_results, "YE")
+        if effects_yearly: write_effect_results_to_excel(calc_results, "YE")
+        if comps_yearly: write_component_results_to_excel(calc_results, "YE")
+        print("...Results to Excel (YE) finished...")
+
+        print("Writing Results to Excel (d)...")
+        if buses_daily: write_bus_results_to_excel(calc_results, "d")
+        if effects_daily: write_effect_results_to_excel(calc_results, "d")
+        if comps_daily: write_component_results_to_excel(calc_results, "d")
+        print("...Results to Excel (d) finished...")
+
+        print("Writing results to Excel (h)...")
+        if buses_hourly: write_bus_results_to_excel(calc_results, "h")
+        if effects_hourly: write_effect_results_to_excel(calc_results, "h")
+        if comps_hourly: write_component_results_to_excel(calc_results, "h")
+        print("...Results to Excel (h) finished...")
 
         return calc_results
 
