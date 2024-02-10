@@ -12,10 +12,12 @@ solver_name = "cbc"         #  open source solver
 
 def main():
     excel_model = ExcelModel(excel_file_path=excel_file_path)
+    excel_model.visual_representation.show()
     excel_model.solve_model(solver_name=solver_name, gap_frac=0.01, timelimit=3600)
-    excel_model.visualize_results()
+    excel_model.visualize_results(overview=True, annual_results=True,
+                                  comps_daily=True, buses_daily=True, effects_daily= True,
+                                  comps_hourly=True, buses_hourly=True, effects_hourly=True)
     # calculation_results_for_further_inspection = excel_model.load_results()
-
 
 
 
