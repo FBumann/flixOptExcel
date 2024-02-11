@@ -636,12 +636,12 @@ class ExcelComps:
             invest_group=comp_data.get("Investgruppe")
         )
 
-        funding = self.get_op_fund_bew_of_hp(fund_per_MWamb=comp_data.get("Betriebskostenförderung BEW"),
-                                             COP=self.handle_COP_calculation(comp_data["COP"], comp_data["COP berechnen"], comp_data["Name"]),
-                                             costs_for_electricity=
+        funding = self.get_operation_fund_of_heatpump_bew(fund_per_mwh_amb=comp_data.get("Betriebskostenförderung BEW"),
+                                                          COP=self.handle_COP_calculation(comp_data["COP"], comp_data["COP berechnen"], comp_data["Name"]),
+                                                          costs_for_electricity=
                                              self.get_value_or_TS("Strom") +
                                              self.get_value_or_TS(comp_data["Zusatzkosten pro MWh Strom"]),
-                                             )
+                                                          )
 
         funding_dict = {}
         if funding is not None:
@@ -761,12 +761,12 @@ class ExcelComps:
             invest_group=comp_data.get("Investgruppe")
         )
 
-        funding = self.get_op_fund_bew_of_hp(fund_per_MWamb=comp_data.get("Betriebskostenförderung BEW"),
-                                             COP=self.handle_COP_calculation(comp_data["COP"], comp_data["COP berechnen"], comp_data["Name"]),
-                                             costs_for_electricity=
+        funding = self.get_operation_fund_of_heatpump_bew(fund_per_mwh_amb=comp_data.get("Betriebskostenförderung BEW"),
+                                                          COP=self.handle_COP_calculation(comp_data["COP"], comp_data["COP berechnen"], comp_data["Name"]),
+                                                          costs_for_electricity=
                                              self.get_value_or_TS("Strom") +
                                              self.get_value_or_TS(comp_data["Zusatzkosten pro MWh Strom"])
-                                             )
+                                                          )
 
         existing_keys = ["label", "bus", "nominal_val", "investArgs", "max_rel"]
         if funding is not None:
@@ -1105,42 +1105,66 @@ class ExcelComps:
                              min_investmentSize=min_investmentSize, max_investmentSize=max_investmentSize)
         return Invest
 
-    def get_op_fund_bew_of_hp(self, COP: Union[np.ndarray, cTSraw, float], costs_for_electricity: np.ndarray,
-                              fund_per_MWamb: float = None) -> Union[np.ndarray, None]:
+    def get_operation_fund_of_heatpump_bew(self, COP: Union[np.ndarray, cTSraw, float], costs_for_electricity: np.ndarray,
+                                           fund_per_mwh_amb: float = None) -> Union[np.ndarray, None]:
         '''
-        This function was written to calculate the operation funding of a Heat Pump (BEW)
+        This function calculates the operation funding of a Heat Pump (german program BEW).
+        The funding is limited to 90% of electricity costs.
 
+        Parameters
         ----------
+        COP: Union[np.ndarray, cTSraw, float]
+            The Coefficient of Performance (COP) of the heat pump. It can be a numpy array, a cTSraw object, or a float.
+        costs_for_electricity: np.ndarray
+            A numpy array representing electricity costs.
+        fund_per_mwh_amb: float, optional
+            The funding amount per MWh (megawatthour) of ambient heat. If None is provided, the function will return None.
 
         Returns
         -------
-        dict
+        Union[np.ndarray, None]
+            A numpy array representing the calculated operation funding per per MWh (megawatthour) of produced
+            thermal heat, subject to a cap of 90% of the electricity costs.
+            If fund_per_mwh_amb is None, the function will return None.
         '''
-        # Betriebskostenförderung, Beschränkt auf 90% der Stromkosten
-        if fund_per_MWamb is None:
+
+        if fund_per_mwh_amb is None:
             return None
         else:
             if isinstance(COP, cTSraw):
                 COP = COP.value
-            fund_per_MWamb = self.get_value_or_TS(fund_per_MWamb)
+            fund_per_mwh_amb = self.get_value_or_TS(fund_per_mwh_amb)
             # Förderung pro MW_th
-            fund_per_mwth = (COP - 1 / COP) * fund_per_MWamb
+            fund_per_mw_th = (COP - 1 / COP) * fund_per_mwh_amb
 
             # Stromkosten pro MW_th
             el_costs_per_MWth = costs_for_electricity / COP
 
             # Begrenzung der Förderung auf 90% der Stromkosten
-            return np.where(fund_per_mwth > el_costs_per_MWth * 0.9, el_costs_per_MWth * 0.9, fund_per_mwth)
+            return np.where(fund_per_mw_th > el_costs_per_MWth * 0.9, el_costs_per_MWth * 0.9, fund_per_mw_th)
 
     def calculate_relative_capacity_of_storage(self, calculate_DT: bool, dT_max: float = 65) -> Union[list, int]:
         '''
-        This function was written to calculate the relative capacity of a Storage due to the changing
-        temperature Spread in a Heating network
+        This function calculates the relative capacity of a storage system based on the changing
+        temperature differential (dT) in a heating network. The dT is derived from the difference between
+        the forward flow and return temperatures.
+
+        Parameters
         ----------
+        calculate_DT: bool
+            A flag to indicate whether to calculate the temperature differential. If True, the function calculates
+            the dT as the difference between the flow and return temperatures in the heat network relative to dT_max.
+            If False, a list of ones is returned.
+        dT_max: float, optional
+            The maximum allowable temperature differential. The default value is 65. This parameter is only used if
+            calculate_DT is set to True.
 
         Returns
         -------
         list
+            A list representing the relative capacity of the storage system. If calculate_DT is True,
+            this represents the ratio of the actual temperature differential to the maximum temperature differential, obtained
+            for each time point in the time series data of the heating network. Otherwise, the list consists of ones.
         '''
         if calculate_DT:
             maxReldT = ((self.time_series_data["TVL_FWN"] - self.time_series_data["TRL_FWN"]) / dT_max).values.tolist()
@@ -1150,14 +1174,37 @@ class ExcelComps:
         maxReldT.append(maxReldT[-1])
         return maxReldT
 
-    def handle_COP_calculation(self, COP: Union[int, float, str], calc_COP_from_TS: bool, name_of_comp:str, eta_carnot=0.5) -> Union[cTSraw, float]:
+    def handle_COP_calculation(self, COP: Union[int, float, str], calc_COP_from_TS: bool,
+                               name_of_comp:str, eta_carnot=0.5) -> Union[cTSraw, float]:
         '''
-        This function was written to assign a COP to a Heat Pump
+        This function assigns a Coefficient of Performance (COP) to a Heat Pump. The COP can either be a fixed value
+        or calculated from time series data for a given heat source temperature.
+
+        Parameters
         ----------
+        COP: Union[int, float, str]
+            The input Coefficient of Performance. This can be a fixed numerical value (int or float),
+            or a string indicating the key for retrieving the time series data.
+        calc_COP_from_TS: bool
+            A flag indicating whether to calculate the COP from time series data. If True,
+            the COP is calculated from the time series data using the Carnot efficiency.
+        name_of_comp: str
+            The name of the component (Heat Pump) for which the COP is being determined.
+        eta_carnot: float, optional
+            The Carnot efficiency value used when calc_COP_from_TS is True. The default value is 0.5.
 
         Returns
         -------
-        (fuel_bus: cBus, fuel_costs: dict)
+        Union[cTSraw, float]
+            The Coefficient of Performance for the heat pump. If the input COP was a numerical value, the same value is returned.
+            If COP was calculated from time series data, a cTSraw instance with the calculated COP data is returned.
+
+        Raises
+        ------
+        Exception
+            If the COP argument is a string not found in the time series data keys,
+            an exception is thrown to indicate the connection between the COP of the heat pump
+            and the time series data has failed.
         '''
         # Wenn fixer COP übergeben wird
         if isinstance(COP, (int, float)):
