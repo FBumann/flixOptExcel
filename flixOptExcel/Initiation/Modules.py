@@ -90,7 +90,7 @@ class ExcelData:
         return co2_factors
 
     def _get_co2_limits(self) -> dict:
-        co2_limit = [limit for limit in self._general_infos["CO2-limit"] if limit is not None]
+        co2_limit = [limit for limit in self._general_infos["CO2-limit"]]
         # Type Checking
         if not all(isinstance(limit, (int, float, type(None))) for limit in co2_limit):
             raise ValueError(f"Only numbers and Nothing is allowed as CO2-Limit")
