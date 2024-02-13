@@ -641,6 +641,7 @@ class ExcelComps:
                                                           costs_for_electricity=
                                              self.get_value_or_TS("Strom") +
                                              self.get_value_or_TS(comp_data["Zusatzkosten pro MWh Strom"]),
+                                                          first_year_of_operation=comp_data.get("Startjahr")
                                                           )
 
         funding_dict = {}
@@ -765,7 +766,8 @@ class ExcelComps:
                                                           COP=self.handle_COP_calculation(comp_data["COP"], comp_data["COP berechnen"], comp_data["Name"]),
                                                           costs_for_electricity=
                                              self.get_value_or_TS("Strom") +
-                                             self.get_value_or_TS(comp_data["Zusatzkosten pro MWh Strom"])
+                                             self.get_value_or_TS(comp_data["Zusatzkosten pro MWh Strom"]),
+                                                          first_year_of_operation=comp_data.get("Startjahr")
                                                           )
 
         existing_keys = ["label", "bus", "nominal_val", "investArgs", "max_rel"]
@@ -1105,7 +1107,9 @@ class ExcelComps:
                              min_investmentSize=min_investmentSize, max_investmentSize=max_investmentSize)
         return Invest
 
-    def get_operation_fund_of_heatpump_bew(self, COP: Union[np.ndarray, cTSraw, float], costs_for_electricity: np.ndarray,
+    def get_operation_fund_of_heatpump_bew(self, COP: Union[np.ndarray, cTSraw, float],
+                                           costs_for_electricity: np.ndarray,
+                                           first_year_of_operation: int,
                                            fund_per_mwh_amb: float = None) -> Union[np.ndarray, None]:
         '''
         This function calculates the operation funding of a Heat Pump (german program BEW).
@@ -1131,6 +1135,9 @@ class ExcelComps:
         if fund_per_mwh_amb is None:
             return None
         else:
+            if not isinstance(first_year_of_operation, int):
+                raise Exception(f"Need to specify the beginning of operation for a heat pump "
+                                f"if operation funding used, because its limited to 10 years")
             if isinstance(COP, cTSraw):
                 COP = COP.value
             fund_per_mwh_amb = self.get_value_or_TS(fund_per_mwh_amb)
@@ -1141,7 +1148,13 @@ class ExcelComps:
             el_costs_per_MWth = costs_for_electricity / COP
 
             # Begrenzung der Förderung auf 90% der Stromkosten
-            return np.where(fund_per_mw_th > el_costs_per_MWth * 0.9, el_costs_per_MWth * 0.9, fund_per_mw_th)
+            fund_per_mw_th = np.where(fund_per_mw_th > el_costs_per_MWth * 0.9, el_costs_per_MWth * 0.9, fund_per_mw_th)
+
+            #Begrenzung auf 10 Jahre
+            fund_per_mw_th = fund_per_mw_th * create_exists(first_year=first_year_of_operation,
+                                                            last_year=first_year_of_operation+9, outputYears=self.years)
+
+            return fund_per_mw_th
 
     def calculate_relative_capacity_of_storage(self, calculate_DT: bool, dT_max: float = 65) -> Union[list, int]:
         '''
