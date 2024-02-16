@@ -162,7 +162,18 @@ Energy Outputs are either endless sinks with a price reward (€/MWh), or a Ener
 - `Heat`A fixed amount of heat needs to be produced per time step. See [Heat Demand and Heating Network](#Heat-Demand-and-Heating-Network)
 - `Electricity`
 #### Operation Funding
-Describe
+The german federal Program BEW funds Heat Pumps with a fixed amount per MWh<sub>ambient</sub>, 
+calculated by a complex formula which includes the SCOP. The funding is limited to a max of 90% of electricity costs, 
+to the first 10 years of operation and further by the "Wirtschaftlichkeitslücke".
+
+**Modeling**
+- Funding in €/MWh<sub>ambient</sub> is estimated by user
+- Assumption: Heat Pump reaches the SCOP of 2.5
+- Funding is limited to first 10 years of operation
+- Funding is applied per timestep and limited to 90% of electricity costs per time step.
+
+This Approach applies the funding in a way, that the funding phase out after 10 years realistcally impacts operation, 
+while giving the user maximum control of the amount of funding he wants to apply.
 
 #### Values Changing over Time
 KPI's and Prices can change over time. To use this feature, instead of assigning a number, pass a column name and create this column in the corresponding excel sheets.
