@@ -33,7 +33,7 @@ The automated and comprehensive evaluation process enables quick understanding o
 		- [Operation Funding](#operation-funding)
 		- [Values Changing over Time](#values-changing-over-time)
 
-#### Setup the Project
+## Setup the Project
 1. Create a new Python project in your IDE (PyCharm, Spyder, ...) and activate it
 2. Install this package via pip in to your environment: `pip install git+https://github.com/FBumann/flixOptExcel.git`
 3. Copy the "main.py" file from this package into your project.
