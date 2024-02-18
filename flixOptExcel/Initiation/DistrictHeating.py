@@ -1,11 +1,13 @@
 from typing import Union, List, TypedDict, Optional
 
-import flixOpt.flixComps
+import os
+import shutil
+from pprintpp import pprint as pp
 import pandas as pd
 from typeguard import typechecked
 from abc import ABC
 
-from flixOptExcel.Initiation.Modules import ExcelData
+from .Modules import ExcelData
 
 from flixOpt.flixComps import *
 from flixOpt.flixStructure import cEffectType, cEnergySystem
@@ -36,8 +38,9 @@ class DistrictHeatingSystem:
 
         self.effects = self.create_effects()
         self.sinks_n_sources = self.create_sinks_n_sources()
+        self.helpers = self.create_helpers()
 
-        self.energy_system: cEnergySystem = self.create_energy_system()
+        self.final_model: cEnergySystem = self.create_energy_system()
 
         self.create_and_register_components()
 
@@ -162,15 +165,16 @@ class DistrictHeatingSystem:
         energy_system = cEnergySystem(timeSeries=self.timeSeries)
         energy_system.addEffects(*list(self.effects.values()))
         energy_system.addComponents(*list(self.sinks_n_sources.values()))
-        energy_system.addComponents(*list(self.components.values()))
-        energy_system.addEffects(*list(self.effects.values()))
+        energy_system.addComponents(*list(self.helpers.values()))
         return energy_system
 
     def create_and_register_components(self):
         for comp_type in self.components_data:
             for component_data in self.components_data[comp_type]:
                 if comp_type == "Speicher":     pass
-                elif comp_type == "Kessel":     Kessel(component_data).convert_to_model(self.energy_system)
+                elif comp_type == "Kessel":
+                    comp = Kessel(**component_data)
+                    comp.add_to_model(self)
                 elif comp_type == "KWK":        pass
                 elif comp_type == "KWKekt":     pass
                 elif comp_type == "Waermepumpe":pass
@@ -185,9 +189,7 @@ class DistrictHeatingSystem:
 
 class DistrictHeatingComponent(ABC):
     @typechecked
-    def __init__(self, district_heating_system: DistrictHeatingSystem, time_series_data: pd.DataFrame = None, **kwargs):
-
-        self.district_heating_system: DistrictHeatingSystem = district_heating_system
+    def __init__(self,**kwargs):
 
         self.label: str | None = kwargs.pop('Name')
         self.thermal_power: int | float | None = kwargs.pop('Thermische Leistung')
@@ -195,18 +197,20 @@ class DistrictHeatingComponent(ABC):
         self.group: str | None = kwargs.pop('Gruppe', None)
 
         # Invest
-        self.optional: bool | None = kwargs.pop('optional', None)
-        self.first_year: int | None = kwargs.pop('first_year', None)
-        self.last_year: int | None = kwargs.pop('last_year', None)
-        self.costs_fix: int | float | None = kwargs.pop('costs_fix', None)
-        self.fund_fix: int | float | None = kwargs.pop('fund_fix', None)
-        self.costs_var: int | float | None = kwargs.pop('costs_var', None)
-        self.fund_var: int | float | None = kwargs.pop('fund_var', None)
-        self.invest_group: cEffectType | None = kwargs.pop('invest_group', None)
+        self.optional: bool | None = kwargs.pop('Optional', None)
+        self.first_year: int | None = kwargs.pop('Startjahr', None)
+        self.last_year: int | None = kwargs.pop('Endjahr', None)
+        self.costs_fix: int | float | None = kwargs.pop('Fixkosten pro Jahr', None)
+        self.fund_fix: int | float | None = kwargs.pop('Förderung pro Jahr', None)
+        self.costs_var: int | float | None = kwargs.pop('Fixkosten pro MW und Jahr', None)
+        self.fund_var: int | float | None = kwargs.pop('Förderung pro MW und Jahr', None)
+        self.invest_group: cEffectType | None = kwargs.pop('Investgruppe', None)
 
         self._kwargs_data: dict = kwargs
 
-    def convert_value_to_TS(self, value: str, time_series_data: pd.DataFrame) -> np.ndarray:
+    def convert_value_to_TS(self, value: Union[float, str], time_series_data: pd.DataFrame) -> Union[np.ndarray, float, int]:
+        if isinstance(value, (int, float)):
+            return value
         if value in time_series_data.keys():
             return time_series_data[value].to_numpy()
         else:
@@ -278,73 +282,29 @@ class DistrictHeatingComponent(ABC):
                 return np.array(repeat_elements_of_list(list_to_repeat))
 
     def create_invest_args(self, district_heating_system: DistrictHeatingSystem) -> cInvestArgs | None:
-
-        '''
-        Create an instance of cInvestArgs based on the provided parameters.
-        Parameters:
-        -----------
-
-        nominal_val : int, float, str, or None
-            The nominal value or capacity of the component. If a string is provided, it must be in the format "min-max" to specify a range. If None, investment size is not fixed. optional : bool True if the component allows optional investment, False otherwise. first_year : int The starting year for the component in the calculation. last_year : int The ending year for the component in the calculation.
-        costs_fix : float
-            Fixed costs associated with the component.
-        fund_fix : float
-            Fixed funding associated with the component.
-        costs_var : float
-            Variable costs associated with the component.
-        fund_var : float
-            Variable funding associated with the component.
-        is_flow: bool, optional
-            True if the component is a flow, False otherwise. Default is False.
-        is_storage : bool, optional
-            True if the component is a storage, False otherwise. Default is False.
-        is_flow_of_storage : bool, optional
-            True if the component is a flow of a storage, False otherwise. Default is False.
-        Returns:
-        ----------------
-        cInvestArgs or (cInvestArgs, cEffectType) if is_flow_of_storage is True
-            An instance of cInvestArgs representing the investment parameters for the component. If is_flow_of_storage is True, a tuple
-            of (cInvestArgs, cEffectType) is returned.
-        Raises:
-         ------
-        Exception
-        - If exactly one of is_flow, is_storage, or is_flow_of_storage is not True.
-        - If the format of the nominal_val string is incorrect.
-        Notes:
-        ---------
-            This function creates an instance of cInvestArgs to represent inv
-            estment parameters for a component. It calculates the multiplier based on the number of years the component is in the calculation. It also determines if the investment is optional and adjusts costs and funding based on the multiplier. If is_flow_of_storage
-            is True, the investment is split between input and output flow components.
-        Example usage:
-        --------------
-            invest_args = get_invest_from_excel(100, False, 2022, 2030, 5000, 10000, 200, 300, is_storage=True) # Returns an instance of cInvestArgs with the specified
-            parameters for a storage component.
-            invest_args, effect_type = get_invest_from_excel("100-200", True, 2023, 2030, 0, 0, 0, 0, is_flow_of_storage=True) # Returns a tuple containing an instance of cInvestArgs and cEffectType for a flow of storage component.
-
-        '''
         # type checking
         list_of_args = (self.optional, self.costs_fix, self.fund_fix, self.costs_var, self.fund_var)
-        if all(value is None for value in list_of_args) and self.nominal_val is not None:
+        if all(value is None for value in list_of_args) and self.thermal_power is not None:
             return None
 
         # default values
         min_investmentSize = 0
         max_investmentSize = 1e9
 
-        if isinstance(self.nominal_val, (int, float)):
+        if isinstance(self.thermal_power, (int, float)):
             investmentSize_is_fixed = True
-        elif self.nominal_val is None:
+        elif self.thermal_power is None:
             investmentSize_is_fixed = False
 
-        elif isinstance(self.nominal_val, str) and is_valid_format_min_max(self.nominal_val):
+        elif isinstance(self.thermal_power, str) and is_valid_format_min_max(self.thermal_power):
             investmentSize_is_fixed = False
-            min_investmentSize = float(self.nominal_val.split("-")[0])
-            max_investmentSize = float(self.nominal_val.split("-")[1])
+            min_investmentSize = float(self.thermal_power.split("-")[0])
+            max_investmentSize = float(self.thermal_power.split("-")[1])
 
-        elif isinstance(self.nominal_val, str):
-            raise Exception(f"Wrong format of string for nominal_value '{self.nominal_val}'.")
+        elif isinstance(self.thermal_power, str):
+            raise Exception(f"Wrong format of string for thermal_power '{self.thermal_power}'.")
         else:
-            raise Exception(f"something went wrong creating the InvestArgs for {self.nominal_val}")
+            raise Exception(f"something went wrong creating the InvestArgs for {self.label}")
 
         fixCosts = {district_heating_system.effects["costs"]: self.costs_fix,
                     district_heating_system.effects["funding"]: self.fund_fix}
@@ -389,29 +349,235 @@ class Kessel(DistrictHeatingComponent):
         self.extra_fuel_costs = kwargs.pop("Zusatzkosten pro MWh Brennstoff")
         super().__init__(**kwargs)
 
-    def add_to_system(self, district_heating_system: DistrictHeatingSystem):
-        self.exists: int | list[int] | None = self.create_exists(district_heating_system)
-        self.investArgs = self.create_invest_args(district_heating_system)
-        self.kwargs = self.get_kwargs(district_heating_system)
+    def add_to_model(self, district_heating_system: DistrictHeatingSystem):
+        exists: int | list[int] | None = self.create_exists(district_heating_system)
+        invest_args = self.create_invest_args(district_heating_system)
+        kwargs = self.get_kwargs(district_heating_system)
 
-        return cKessel(label=self.label,
+        comp = cKessel(label=self.label,
                        group=self.group,
-                       eta=self.eta_th,
-                       exists=self.exists,
+                       eta=self.convert_value_to_TS(self.eta_th, district_heating_system.time_series_data),
+                       exists=exists,
                        Q_th=cFlow(label='Qth',
                                   bus=district_heating_system.busses["Fernwaerme"],
-                                  nominal_val=self.nominal_val,
-                                  investArgs=self.investArgs,
-                                  **self.get_kwargs(district_heating_system)
+                                  nominal_val=self.thermal_power,
+                                  investArgs=invest_args,
+                                  **kwargs
                                   ),
                        Q_fu=cFlow(label='Qfu',
-                                  bus=self.busses[self.fuel_type],
+                                  bus=district_heating_system.busses[self.fuel_type],
                                   costsPerFlowHour=
-                                  self.convert_value_to_TS(self.fuel_type, district_heating_system.timeSeries) +
-                                  self.convert_value_to_TS(self.extra_fuel_costs, district_heating_system.timeSeries)
+                                  self.convert_value_to_TS(self.fuel_type, district_heating_system.time_series_data) +
+                                  self.convert_value_to_TS(self.extra_fuel_costs, district_heating_system.time_series_data)
                                   )
                        )
 
+        district_heating_system.final_model.addComponents(comp)
 
-lin = Kessel()
-print(lin)
+
+class KWK(DistrictHeatingComponent):
+    @typechecked
+    def __init__(self, **kwargs):
+        self.eta_th: float | str = kwargs.pop("eta_th")
+        self.eta_el: float | str = kwargs.pop("eta_el")
+        self.fuel_type = kwargs.pop("Brennstoff")
+        self.extra_fuel_costs = kwargs.pop("Zusatzkosten pro MWh Brennstoff")
+        super().__init__(**kwargs)
+
+    def add_to_model(self, district_heating_system: DistrictHeatingSystem):
+        exists: int | list[int] | None = self.create_exists(district_heating_system)
+        invest_args = self.create_invest_args(district_heating_system)
+        kwargs = self.get_kwargs(district_heating_system)
+
+        comp = cKWK(label=self.label,
+                    group=self.group,
+                    eta=self.convert_value_to_TS(self.eta_th, district_heating_system.time_series_data),
+                    exists=exists,
+                    Q_th=cFlow(label='Qth',
+                               bus=district_heating_system.busses["Fernwaerme"],
+                               nominal_val=self.thermal_power,
+                               investArgs=invest_args,
+                               **kwargs
+                               ),
+                    P_el=cFlow(label='Pel',
+                               bus=district_heating_system.busses["StromEinspeisung"],
+                               costsPerFlowHour=
+                               self.convert_value_to_TS(self.fuel_type, district_heating_system.time_series_data) +
+                               self.convert_value_to_TS(self.extra_fuel_costs, district_heating_system.time_series_data)
+                               ),
+                    Q_fu=cFlow(label='Qfu',
+                               bus=district_heating_system.busses[self.fuel_type],
+                               costsPerFlowHour=
+                               self.convert_value_to_TS(self.fuel_type, district_heating_system.time_series_data) +
+                               self.convert_value_to_TS(self.extra_fuel_costs, district_heating_system.time_series_data)
+                               )
+                    )
+
+        district_heating_system.final_model.addComponents(comp)
+
+
+class ExcelModel:
+    def __init__(self, excel_file_path: str):
+        self.excel_data = ExcelData(file_path=excel_file_path)
+        self.district_heating_system = DistrictHeatingSystem(self.excel_data)
+
+        self.calc_name = self.excel_data.calc_name
+        self.final_directory:str = os.path.join(self.excel_data.results_directory, self.calc_name)
+        self.input_excel_file_path = excel_file_path
+        self.years = self.excel_data.years
+
+
+    @property
+    def visual_representation(self):
+        visu_data = cVisuData(es=self.district_heating_system.final_model)
+        model_visualization = cModelVisualizer(visu_data)
+        return model_visualization.Figure
+
+    def print_comps_in_categories(self):
+        # String-resources
+        print("###############################################")
+        print("Initiated Comps:")
+        categorized_comps = {}
+        for comp in self.district_heating_system.final_model.listOfComponents:
+            comp: cBaseComponent
+            category = type(comp).__name__
+            if category not in categorized_comps:
+                categorized_comps[category] = [comp.label]
+            else:
+                categorized_comps[category].append(comp.label)
+
+        for category, comps in categorized_comps.items():
+            print(f"{category}: {comps}")
+
+    def solve_model(self, solver_name:str, gap_frac:float=0.01, timelimit:int= 3600):
+        self.print_comps_in_categories()
+        self._adjust_calc_name_and_results_folder()
+        self._create_dirs_and_copy_input_excel_file()
+
+        calculation = cCalculation(self.calc_name, self.district_heating_system.final_model, 'pyomo',
+                                   pathForSaving=self.final_directory)  # create Calculation
+        calculation.doModelingAsOneSegment()
+
+        solver_props = {'gapFrac': gap_frac,  # solver-gap
+                        'timelimit': timelimit,  # seconds until solver abort
+                        'solver': solver_name,
+                        'displaySolverOutput': True,  # ausführlicher Solver-resources.
+                        }
+
+        calculation.solve(solver_props, nameSuffix='_' + solver_name, aPath=os.path.join(self.final_directory, "SolveResults"))
+        self.calc_name = calculation.nameOfCalc
+
+    def load_results(self) -> flixPostXL:
+        return flixPostXL(nameOfCalc=self.calc_name,
+                          results_folder=os.path.join(self.final_directory, "SolveResults"),
+                          outputYears=self.years)
+    def visualize_results(self, overview:bool=True, annual_results:bool=True,
+                          buses_yearly: bool=True, comps_yearly:bool=True, effects_yearly:bool=True,
+                          buses_daily:bool=True, comps_daily:bool=True, effects_daily:bool=True,
+                          buses_hourly:bool=False, comps_hourly:bool=False, effects_hourly:bool=False) ->flixPostXL:
+        """
+        Visualizes the results of the calculation.
+
+        * The overview results are mainly used to compare yearly mean values
+          between different years.
+
+        * The annual results are used to go into detail about the heating
+          production and storage usage in each year.
+
+        * The buses results are used to look at all uses of energy balance.
+
+        * The comps results are used to look at all Transformation processes
+          in the different components.
+
+        * The effects results are used to look at all effects. Effects are
+          Costs, CO2 Funding, etc.
+
+        * Daily mean values are enough for most use cases.
+
+        * Hourly values are good for in-depth examinations, but take a long
+          time to extract and save.
+
+        * TAKE CARE: Writing hourly data to excel takes a significant amount of time for
+          big Models with many Components.
+
+        Parameters:
+            overview (bool): Whether to write overview graphics. Default is True.
+            annual_results (bool): Whether to write annual results graphics. Default is True.
+            buses_yearly (bool): Whether to write annual results for buses to excel. Default is True.
+            comps_yearly (bool): Whether to write annual results for components to excel. Default is True.
+            effects_yearly (bool): Whether to write annual results for effects to excel. Default is True.
+            buses_daily (bool): Whether to write daily results for buses to excel. Default is True.
+            comps_daily (bool): Whether to write daily results for components to excel. Default is True.
+            effects_daily (bool): Whether to write daily results for effects to excel. Default is True.
+            buses_hourly (bool): Whether to write hourly results for buses to excel. Default is False.
+            comps_hourly (bool): Whether to write hourly results for components to excel. Default is False.
+            effects_hourly (bool): Whether to write hourly results for effects to excel. Default is False.
+
+        Returns:
+            flixPostXL: The calculated results.
+        """
+
+        calc_results = self.load_results()
+
+        main_results = calc_results.infos["modboxes"]["info"][0]["main_results"]
+        with open(os.path.join(calc_results.folder, "MainResults.txt"), "w") as log_file:
+            pp(main_results, log_file)
+
+        self.visual_representation.write_html(os.path.join(calc_results.folder, 'Model_structure.html'))
+
+        from flixOptExcel.Evaluation.graphics_excel import (run_excel_graphics_main,
+                                                            run_excel_graphics_years,
+                                                            write_bus_results_to_excel,
+                                                            write_effect_results_to_excel,
+                                                            write_component_results_to_excel)
+        print("START: EXPORT OF RESULTS TO EXCEL...")
+        if overview: run_excel_graphics_main(calc_results)
+        if annual_results: run_excel_graphics_years(calc_results)
+
+        print("Writing Results to Excel (YE)...")
+        if buses_yearly: write_bus_results_to_excel(calc_results, "YE")
+        if effects_yearly: write_effect_results_to_excel(calc_results, "YE")
+        if comps_yearly: write_component_results_to_excel(calc_results, "YE")
+        print("...Results to Excel (YE) finished...")
+
+        print("Writing Results to Excel (d)...")
+        if buses_daily: write_bus_results_to_excel(calc_results, "d")
+        if effects_daily: write_effect_results_to_excel(calc_results, "d")
+        if comps_daily: write_component_results_to_excel(calc_results, "d")
+        print("...Results to Excel (d) finished...")
+
+        print("Writing results to Excel (h)...")
+        if buses_hourly: write_bus_results_to_excel(calc_results, "h")
+        if effects_hourly: write_effect_results_to_excel(calc_results, "h")
+        if comps_hourly: write_component_results_to_excel(calc_results, "h")
+        print("...Results to Excel (h) finished...")
+
+        return calc_results
+
+    def _create_dirs_and_copy_input_excel_file(self):
+        os.mkdir(self.final_directory)
+        shutil.copy2(self.input_excel_file_path, os.path.join(self.final_directory, "Inputdata.xlsx"))
+
+        calc_info = f"""calc = flixPostXL(nameOfCalc='{self.calc_name}', 
+        results_folder='{os.path.join(self.final_directory, 'SolveResults')}', 
+        outputYears={self.years})"""
+
+        with open(os.path.join(self.final_directory, "calc_info.txt"), "w") as log_file:
+            log_file.write(calc_info)
+
+
+    def _adjust_calc_name_and_results_folder(self):
+        if os.path.exists(self.final_directory):
+            for i in range(1,100):
+                calc_name = self.calc_name + "_" + str(i)
+                final_directory = os.path.join(os.path.dirname(self.final_directory), calc_name)
+                if not os.path.exists(final_directory):
+                    self.calc_name = calc_name
+                    self.final_directory = final_directory
+                    if i >= 5:
+                        print(f"There are over {i} different calculations with the same name. "
+                              f"Please choose a different name next time.")
+                    if i>= 99:
+                        raise Exception(f"Maximum number of different calculations with the same name exceeded. "
+                                        f"Max is 9999.")
+                    break

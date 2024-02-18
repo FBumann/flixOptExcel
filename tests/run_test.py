@@ -1,4 +1,4 @@
-from flixOptExcel.Initiation.Modules import ExcelModel
+from flixOptExcel.Initiation.flixCompsExcel import ExcelModel
 import os
 
 
