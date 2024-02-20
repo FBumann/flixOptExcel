@@ -2,6 +2,8 @@ from typing import Union, List, TypedDict, Optional
 
 import os
 import shutil
+
+import numpy as np
 from pprintpp import pprint as pp
 import pandas as pd
 from typeguard import typechecked
@@ -171,29 +173,40 @@ class DistrictHeatingSystem:
     def create_and_register_components(self):
         for comp_type in self.components_data:
             for component_data in self.components_data[comp_type]:
-                if comp_type == "Speicher":     pass
+                if comp_type == "Speicher":
+                    comp = Storage(**component_data)
+                    comp.add_to_model(self)
                 elif comp_type == "Kessel":
                     comp = Kessel(**component_data)
                     comp.add_to_model(self)
-                elif comp_type == "KWK":        pass
-                elif comp_type == "KWKekt":     pass
-                elif comp_type == "Waermepumpe":pass
-                elif comp_type == "EHK":        pass
-                elif comp_type == "AbwaermeWP": pass
-                elif comp_type == "AbwaermeHT": pass
-                elif comp_type == "Rueckkuehler":pass
-                else: raise TypeError(f"{comp_type} is not a valid Type of Component. "
+                elif comp_type == "KWK":
+                    pass
+                elif comp_type == "KWKekt":
+                    pass
+                elif comp_type == "Waermepumpe":
+                    pass
+                elif comp_type == "EHK":
+                    pass
+                elif comp_type == "AbwaermeWP":
+                    pass
+                elif comp_type == "AbwaermeHT":
+                    pass
+                elif comp_type == "Rueckkuehler":
+                    pass
+                else:
+                    raise TypeError(f"{comp_type} is not a valid Type of Component. "
                                     f"Implemented types: (KWK, KWKekt, Kessel, EHK, Waermepumpe, "
                                     f"AbwaermeWP, AbwaermeHT, Rueckkuehler, Speicher.")
 
 
 class DistrictHeatingComponent(ABC):
     @typechecked
-    def __init__(self,**kwargs):
+    def __init__(self, **kwargs):
 
-        self.label: str | None = kwargs.pop('Name')
-        self.thermal_power: int | float | None = kwargs.pop('Thermische Leistung')
-
+        self.label: str = kwargs.pop('Name')
+        if not isinstance(self.label, str):
+            raise TypeError(f"Name of a Component must be a string, not {self.label}({type(self.label)})")
+        self.thermal_power: int | float | str | None = kwargs.pop('Thermische Leistung')
         self.group: str | None = kwargs.pop('Gruppe', None)
 
         # Invest
@@ -206,15 +219,63 @@ class DistrictHeatingComponent(ABC):
         self.fund_var: int | float | None = kwargs.pop('Förderung pro MW und Jahr', None)
         self.invest_group: cEffectType | None = kwargs.pop('Investgruppe', None)
 
+        self._validate_types()
+
         self._kwargs_data: dict = kwargs
 
-    def convert_value_to_TS(self, value: Union[float, str], time_series_data: pd.DataFrame) -> Union[np.ndarray, float, int]:
+        self.thermal_power_min = 0
+        self.thermal_power_max = 1e9
+        self.handle_thermal_power()
+
+    def _validate_types(self):
+        if not isinstance(self.label, str):
+            raise TypeError(f"Name of a Component must be a string, not {self.label}({type(self.label)})")
+        if not isinstance(self.thermal_power, (int, float, str, type(None))):
+            raise TypeError(f"Name of a Component must be int, float, str or left blank, not {self.thermal_power}({type(self.thermal_power)})")
+        if not self.check_str_format_min_max(self.thermal_power):
+            raise TypeError(f"If Thermal Power must is a string, it has to be of Format 'min-max' to limit thermal power for investments")
+        if not isinstance(self.group, (str, type(None))):
+            raise TypeError(f"A Group must be a str or left blank, not {self.group}({type(self.group)})")
+
+
+    def convert_value_to_TS(self, value: Union[float, int, str], time_series_data: pd.DataFrame) -> Union[
+        np.ndarray, float, int]:
         if isinstance(value, (int, float)):
             return value
         if value in time_series_data.keys():
             return time_series_data[value].to_numpy()
         else:
             raise Exception(f"{value} is not in given TimeSeries Data.")
+
+    def check_str_format_min_max(self, input_string: str) -> bool:
+        '''
+        This function was written to check if a string is of the format "min-max"
+        ----------
+        Returns
+        -------
+        bool
+        '''
+        pattern = r'^\d+-\d+$'
+        if re.match(pattern, input_string):
+            return True
+        else:
+            return False
+
+    def handle_thermal_power(self):
+        if isinstance(self.thermal_power, (float, int)):
+            pass
+        elif self.thermal_power is None:
+            pass
+        elif isinstance(self.thermal_power, str):
+            if self.check_str_format_min_max(self.thermal_power):
+                self.thermal_power = None
+                self.thermal_power_min = float(self.thermal_power.split("-")[0])
+                self.thermal_power_max = float(self.thermal_power.split("-")[1])
+            else:
+                raise Exception(f"Wrong format of string for thermal_power '{self.thermal_power}'."
+                                f"If thermal power is passed as a string, it must be of the format 'min-max'")
+        else:
+            raise Exception(f"Wrong type for invest parameter '{self.thermal_power}:{type(self.thermal_power)}'")
 
     def to_dict(self) -> dict:
         return self.__dict__
@@ -287,22 +348,10 @@ class DistrictHeatingComponent(ABC):
         if all(value is None for value in list_of_args) and self.thermal_power is not None:
             return None
 
-        # default values
-        min_investmentSize = 0
-        max_investmentSize = 1e9
-
         if isinstance(self.thermal_power, (int, float)):
             investmentSize_is_fixed = True
         elif self.thermal_power is None:
             investmentSize_is_fixed = False
-
-        elif isinstance(self.thermal_power, str) and is_valid_format_min_max(self.thermal_power):
-            investmentSize_is_fixed = False
-            min_investmentSize = float(self.thermal_power.split("-")[0])
-            max_investmentSize = float(self.thermal_power.split("-")[1])
-
-        elif isinstance(self.thermal_power, str):
-            raise Exception(f"Wrong format of string for thermal_power '{self.thermal_power}'.")
         else:
             raise Exception(f"something went wrong creating the InvestArgs for {self.label}")
 
@@ -338,7 +387,7 @@ class DistrictHeatingComponent(ABC):
         return cInvestArgs(fixCosts=fixCosts, specificCosts=specificCosts,
                            investmentSize_is_fixed=investmentSize_is_fixed,
                            investment_is_optional=investment_is_optional,
-                           min_investmentSize=min_investmentSize, max_investmentSize=max_investmentSize)
+                           min_investmentSize=self.minimum_thermal_power, max_investmentSize=self.minimum_thermal_power)
 
 
 class Kessel(DistrictHeatingComponent):
@@ -368,7 +417,8 @@ class Kessel(DistrictHeatingComponent):
                                   bus=district_heating_system.busses[self.fuel_type],
                                   costsPerFlowHour=
                                   self.convert_value_to_TS(self.fuel_type, district_heating_system.time_series_data) +
-                                  self.convert_value_to_TS(self.extra_fuel_costs, district_heating_system.time_series_data)
+                                  self.convert_value_to_TS(self.extra_fuel_costs,
+                                                           district_heating_system.time_series_data)
                                   )
                        )
 
@@ -388,6 +438,7 @@ class KWK(DistrictHeatingComponent):
         exists: int | list[int] | None = self.create_exists(district_heating_system)
         invest_args = self.create_invest_args(district_heating_system)
         kwargs = self.get_kwargs(district_heating_system)
+        co2_credit = self.co2_credit_for_el(district_heating_system)
 
         comp = cKWK(label=self.label,
                     group=self.group,
@@ -400,10 +451,9 @@ class KWK(DistrictHeatingComponent):
                                **kwargs
                                ),
                     P_el=cFlow(label='Pel',
-                               bus=district_heating_system.busses["StromEinspeisung"],
-                               costsPerFlowHour=
-                               self.convert_value_to_TS(self.fuel_type, district_heating_system.time_series_data) +
-                               self.convert_value_to_TS(self.extra_fuel_costs, district_heating_system.time_series_data)
+                               bus=self.busses["StromEinspeisung"],
+                               costsPerFlowHour={self.effects["CO2FW"]: co2_credit,
+                                                 self.effects["costs"]: -1 * self.time_series_data["Strom"]}
                                ),
                     Q_fu=cFlow(label='Qfu',
                                bus=district_heating_system.busses[self.fuel_type],
@@ -415,6 +465,150 @@ class KWK(DistrictHeatingComponent):
 
         district_heating_system.final_model.addComponents(comp)
 
+    def co2_credit_for_el(self, district_heating_system: DistrictHeatingSystem):
+        t_vl = district_heating_system.time_series_data["TVL_FWN"] + 273.15
+        t_rl = district_heating_system.time_series_data["TVL_FWN"] + 273.15
+        t_amb = district_heating_system.time_series_data["Tamb"] + 273.15
+        n_el = self.convert_value_to_TS(self.eta_el, district_heating_system.time_series_data)
+        n_th = self.convert_value_to_TS(self.eta_th, district_heating_system.time_series_data)
+        co2_fuel: float = district_heating_system.co2_factors.get("Erdgas", 0)
+
+        # Berechnung der co2-Gutschrift für die Stromproduktion nach der Carnot-Methode
+        t_s = (t_vl - t_rl) / np.log((t_vl / t_rl))  # Temperatur Nutzwärme
+        n_carnot = 1 - (t_amb / t_s)
+
+        a_el = (1 * n_el) / (n_el + n_carnot * n_th)
+        f_el = a_el / n_el
+        co2_el = f_el * co2_fuel
+
+        return co2_el
+
+
+class Storage(DistrictHeatingComponent):
+    @typechecked
+    def __init__(self, **kwargs):
+        self.capacity: float | int | None = kwargs.pop("Kapazität [MWh]")
+        self.consider_temperature: bool = kwargs.pop("AbhängigkeitVonDT", False)
+        self.losses_per_hour: float = kwargs.pop("VerlustProStunde", 0)
+        self.eta_load: float = kwargs.pop("eta_load", 1)
+        self.eta_unload: float = kwargs.pop("eta_unload", 1)
+
+        self.costs_cap_var: float | None = kwargs.pop('Fixkosten pro MWh und Jahr', None)
+        self.fund_cap_var: float | None = kwargs.pop('Förderung pro MWh und Jahr', None)
+        super().__init__(**kwargs)
+
+    def create_invest_args_capacity(self, district_heating_system: DistrictHeatingSystem) -> cInvestArgs | None:
+        # type checking
+        list_of_args = (self.optional, self.costs_cap_var, self.fund_cap_var)
+        if all(value is None for value in list_of_args) and self.capacity is not None:
+            return None
+
+        # default values
+        min_investmentSize = 0
+        max_investmentSize = 1e9
+
+        if isinstance(self.capacity, (int, float)):
+            investmentSize_is_fixed = True
+        elif self.capacity is None:
+            investmentSize_is_fixed = False
+
+        elif isinstance(self.capacity, str) and is_valid_format_min_max(self.capacity):
+            investmentSize_is_fixed = False
+            min_investmentSize = float(self.capacity.split("-")[0])
+            max_investmentSize = float(self.capacity.split("-")[1])
+
+        elif isinstance(self.capacity, str):
+            raise Exception(f"Wrong format of string for thermal_power '{self.capacity}'.")
+        else:
+            raise Exception(f"something went wrong creating the InvestArgs for {self.label}")
+
+        fixCosts = None
+        specificCosts = {district_heating_system.effects["costs"]: self.costs_cap_var,
+                         district_heating_system.effects["funding"]: self.fund_cap_var}
+
+        # Drop if None
+        specificCosts = {key: value for key, value in specificCosts.items() if value is not None}
+
+        # How many years is the comp in the calculation?
+        multiplier = sum(
+            [1 if self.first_year <= num <= self.last_year else 0 for num in district_heating_system.years])
+
+        # Choose, if it's an optional Investment or a forced investment
+        if self.optional:
+            investment_is_optional = True
+        else:
+            investment_is_optional = False
+
+        # Multiply the costs with the number of years the comp is in the calculation
+        for key in specificCosts:
+            specificCosts[key] *= multiplier
+
+        return cInvestArgs(fixCosts=fixCosts, specificCosts=specificCosts,
+                           investmentSize_is_fixed=investmentSize_is_fixed,
+                           investment_is_optional=investment_is_optional,
+                           min_investmentSize=min_investmentSize, max_investmentSize=max_investmentSize)
+
+    def add_to_model(self, district_heating_system: DistrictHeatingSystem):
+        exists: int | list[int] | None = self.create_exists(district_heating_system)
+        max_rel = self.calculate_relative_capacity_of_storage(
+            low_temp=district_heating_system.time_series_data["TRL_FWN"],
+            high_temp=district_heating_system.time_series_data["TVL_FWN"],
+            dT_max=65)
+
+        # Invest
+        invest_args_capacity = self.create_invest_args_capacity(district_heating_system)
+
+        invest_args_load = self.create_invest_args(district_heating_system)
+        invest_args_unload = self.create_invest_args(district_heating_system)
+        effect_couple_thermal_power=None
+        if invest_args_unload is not None:
+            effect_couple_thermal_power = cEffectType(label=f"helpInv{self.label}", unit="",
+                                                      description=f"Couple thermal power of in and out flow of {self.label}",
+                                                      min_investSum=0, max_investSum=0)
+            invest_args_load.specificCosts[effect_couple_thermal_power] = -1
+            invest_args_unload.specificCosts = {effect_couple_thermal_power: -1}
+
+        kwargs = self.get_kwargs(district_heating_system)
+
+        storage = cStorage(label=self.label,
+                           group=self.group,
+                           capacity_inFlowHours=self.capacity,
+                           eta_load=self.eta_load,
+                           eta_unload=self.eta_unload,
+                           max_rel_chargeState=max_rel,
+                           exists=exists,
+                           investArgs=invest_args_capacity,
+                           inFlow=cFlow(label='QthLoad',
+                                        bus=district_heating_system.busses["Fernwaerme"],
+                                        exists=exists,
+                                        nominal_val=self.thermal_power,
+                                        max_rel=max_rel,
+                                        investArgs=invest_args_load,
+                                        **kwargs
+                                        ),
+                           outFlow=cFlow(label='QthUnload',
+                                         bus=district_heating_system.busses["Fernwaerme"],
+                                         exists=exists,
+                                         nominal_val=self.thermal_power,
+                                         max_rel=max_rel,
+                                         investArgs=invest_args_unload,
+                                         ),
+                           avoidInAndOutAtOnce=True,
+                           )
+
+        if effect_couple_thermal_power is not None:
+            district_heating_system.final_model.addEffects(effect_couple_thermal_power)
+        district_heating_system.final_model.addComponents(storage)
+
+    def calculate_relative_capacity_of_storage(self, low_temp: np.ndarray, high_temp: np.ndarray,
+                                               dT_max: float) -> Union[np.ndarray, float]:
+        # TODO: Normalize automatically?
+        if self.consider_temperature:
+            max_rel = ((high_temp - low_temp) / dT_max)
+            return np.append(max_rel, max_rel[-1])
+        else:
+            return 1
+
 
 class ExcelModel:
     def __init__(self, excel_file_path: str):
@@ -422,10 +616,9 @@ class ExcelModel:
         self.district_heating_system = DistrictHeatingSystem(self.excel_data)
 
         self.calc_name = self.excel_data.calc_name
-        self.final_directory:str = os.path.join(self.excel_data.results_directory, self.calc_name)
+        self.final_directory: str = os.path.join(self.excel_data.results_directory, self.calc_name)
         self.input_excel_file_path = excel_file_path
         self.years = self.excel_data.years
-
 
     @property
     def visual_representation(self):
@@ -449,7 +642,7 @@ class ExcelModel:
         for category, comps in categorized_comps.items():
             print(f"{category}: {comps}")
 
-    def solve_model(self, solver_name:str, gap_frac:float=0.01, timelimit:int= 3600):
+    def solve_model(self, solver_name: str, gap_frac: float = 0.01, timelimit: int = 3600):
         self.print_comps_in_categories()
         self._adjust_calc_name_and_results_folder()
         self._create_dirs_and_copy_input_excel_file()
@@ -464,17 +657,20 @@ class ExcelModel:
                         'displaySolverOutput': True,  # ausführlicher Solver-resources.
                         }
 
-        calculation.solve(solver_props, nameSuffix='_' + solver_name, aPath=os.path.join(self.final_directory, "SolveResults"))
+        calculation.solve(solver_props, nameSuffix='_' + solver_name,
+                          aPath=os.path.join(self.final_directory, "SolveResults"))
         self.calc_name = calculation.nameOfCalc
 
     def load_results(self) -> flixPostXL:
         return flixPostXL(nameOfCalc=self.calc_name,
                           results_folder=os.path.join(self.final_directory, "SolveResults"),
                           outputYears=self.years)
-    def visualize_results(self, overview:bool=True, annual_results:bool=True,
-                          buses_yearly: bool=True, comps_yearly:bool=True, effects_yearly:bool=True,
-                          buses_daily:bool=True, comps_daily:bool=True, effects_daily:bool=True,
-                          buses_hourly:bool=False, comps_hourly:bool=False, effects_hourly:bool=False) ->flixPostXL:
+
+    def visualize_results(self, overview: bool = True, annual_results: bool = True,
+                          buses_yearly: bool = True, comps_yearly: bool = True, effects_yearly: bool = True,
+                          buses_daily: bool = True, comps_daily: bool = True, effects_daily: bool = True,
+                          buses_hourly: bool = False, comps_hourly: bool = False,
+                          effects_hourly: bool = False) -> flixPostXL:
         """
         Visualizes the results of the calculation.
 
@@ -565,10 +761,9 @@ class ExcelModel:
         with open(os.path.join(self.final_directory, "calc_info.txt"), "w") as log_file:
             log_file.write(calc_info)
 
-
     def _adjust_calc_name_and_results_folder(self):
         if os.path.exists(self.final_directory):
-            for i in range(1,100):
+            for i in range(1, 100):
                 calc_name = self.calc_name + "_" + str(i)
                 final_directory = os.path.join(os.path.dirname(self.final_directory), calc_name)
                 if not os.path.exists(final_directory):
@@ -577,7 +772,7 @@ class ExcelModel:
                     if i >= 5:
                         print(f"There are over {i} different calculations with the same name. "
                               f"Please choose a different name next time.")
-                    if i>= 99:
+                    if i >= 99:
                         raise Exception(f"Maximum number of different calculations with the same name exceeded. "
                                         f"Max is 9999.")
                     break

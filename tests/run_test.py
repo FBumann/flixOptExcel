@@ -1,4 +1,4 @@
-from flixOptExcel.Initiation.flixCompsExcel import ExcelModel
+from flixOptExcel.Initiation.DistrictHeating import ExcelModel
 import os
 
 

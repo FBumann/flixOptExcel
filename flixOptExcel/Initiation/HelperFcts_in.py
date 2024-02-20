@@ -731,17 +731,21 @@ def combine_dicts_of_component_data(component_data_1,component_data_2):
 def convert_component_data_for_looping_through(Erzeugerdaten):
     '''
     This function was written to prepare the component data for looping through and creating the components
+    It converts the component data for each type from a dataframe to a dict for each component.
+    Further it removes all None values
     :param Erzeugerdaten: dict of pd.Dataframes
     ----------
     Returns
     -------
-    dict
+    dict of lists of dicts
     '''
     ErzDaten = {}
     for typ in Erzeugerdaten:
         ErzDaten[typ] = list()
         for comp in Erzeugerdaten[typ].columns:
-            ErzDaten[typ].append(Erzeugerdaten[typ][comp].to_dict())
+            erzeugerdaten_as_dict = Erzeugerdaten[typ][comp].to_dict()
+            erzeugerdaten_as_dict_wo_none = {k: v for k, v in erzeugerdaten_as_dict.items() if v is not None}
+            ErzDaten[typ].append(erzeugerdaten_as_dict_wo_none)
             if not ErzDaten[typ]: # if list is empty
                 ErzDaten.pop(typ)
 
