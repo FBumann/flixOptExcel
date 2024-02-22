@@ -280,7 +280,7 @@ class DistrictHeatingSystem:
                                               sink=cFlow('Qth', bus=self.busses['Fernwaerme'],
                                                          nominal_val=1, val_rel=self.time_series_data["SinkHeat"]))
 
-        sinks_n_sources['Netzverluste'] = cSink('Netzverluste', group="Wärmelast_mit_Verlust",
+        sinks_n_sources['Netzverluste'] = cSink('Netzverluste', group="Wärmelast",
                                                            sink=cFlow('Qth', bus=self.busses['Fernwaerme'],
                                                                       nominal_val=1,
                                                                       val_rel=self.time_series_data["SinkLossHeat"]))

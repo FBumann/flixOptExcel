@@ -244,14 +244,14 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
             # Wärmeerzeugung als Jahresdauerlinien (Tagesmittelwerte)
             df = df_fernwaerme_erz_nach_techn_D[df_fernwaerme_erz_nach_techn_D.index.year == year]
-            df.sort_values("Wärmelast_mit_Verlust", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last-D")
+            df.sort_values("Wärmelast", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last-D")
             df.sort_values("Strompreis", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Strom-D")
 
             print(f"......Year-{year} finished (short version)")
             if not short_version:
                 # Wärmeerzeugung als Jahresdauerlinien (Stundenwerte)
                 df = df_fernwaerme_erz_nach_techn_H[df_fernwaerme_erz_nach_techn_H.index.year == year]
-                df.sort_values("Wärmelast_mit_Verlust", ascending=False, ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last")
+                df.sort_values("Wärmelast", ascending=False, ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last")
                 df.sort_values("Strompreis", ascending=False, ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Strom")
 
                 # Wärmeerzeugung im Februar und Juli (Stundenwerte)
@@ -539,9 +539,9 @@ class cExcelFcts():
             df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped)
         else:
             df_fernwaerme_grouped = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=True, invert_Output=True)
-            df_fernwaerme_grouped["Wärmelast_mit_Verlust"] = -1 * df_fernwaerme_grouped["Wärmelast_mit_Verlust"]  # reinverting
-            df_fernwaerme_grouped = pd.concat([df_fernwaerme_grouped, getFuelCosts(self.calc)["Strompreis"]], axis=1)
-            df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped, ['Wärmelast_mit_Verlust', 'Strompreis'])
+            df_fernwaerme_grouped["Wärmelast"] = -1 * df_fernwaerme_grouped["Wärmelast"]  # reinverting
+            df_fernwaerme_grouped = pd.concat([df_fernwaerme_grouped, self.calc.getFuelCosts()["Strompreis"]], axis=1)
+            df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped, ['Wärmelast', 'Strompreis'])
 
         df_fernwaerme_erz_nach_techn = resample_data(df_fernwaerme_grouped_sorted, self.calc.years, resamply_by,
                                                      rs_method)
