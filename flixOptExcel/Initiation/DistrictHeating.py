@@ -13,8 +13,7 @@ from flixOpt.flixCompsExperimental import KWKektB
 from flixOpt.flixStructure import cEffectType, cEnergySystem
 
 from .Modules import ExcelData
-from flixOptExcel.Evaluation.HelperFcts_post import flixPostXL
-from flixOptExcel.Evaluation.flixPostprocessingXL import cModelVisualizer, cVisuData
+from flixOptExcel.Evaluation.flixPostprocessingXL import cModelVisualizer, cVisuData, flixPostXL
 from flixOptExcel.Initiation.HelperFcts_in import repeat_elements_of_list
 
 
@@ -129,31 +128,28 @@ class ExcelModel:
 
         self.visual_representation.write_html(os.path.join(calc_results.folder, 'Model_structure.html'))
 
-        from flixOptExcel.Evaluation.graphics_excel import (run_excel_graphics_main,
-                                                            run_excel_graphics_years,
-                                                            write_bus_results_to_excel,
-                                                            write_effect_results_to_excel,
-                                                            write_component_results_to_excel)
+        from flixOptExcel.Evaluation.excelDH import (run_excel_graphics_main,
+                                                            run_excel_graphics_years)
         print("START: EXPORT OF RESULTS TO EXCEL...")
         if overview: run_excel_graphics_main(calc_results)
         if annual_results: run_excel_graphics_years(calc_results)
 
         print("Writing Results to Excel (YE)...")
-        if buses_yearly: write_bus_results_to_excel(calc_results, "YE")
-        if effects_yearly: write_effect_results_to_excel(calc_results, "YE")
-        if comps_yearly: write_component_results_to_excel(calc_results, "YE")
+        if buses_yearly: calc_results.write_bus_results_to_excel("YE")
+        if effects_yearly: calc_results.write_effect_results_to_excel( "YE")
+        if comps_yearly: calc_results.write_component_results_to_excel( "YE")
         print("...Results to Excel (YE) finished...")
 
         print("Writing Results to Excel (d)...")
-        if buses_daily: write_bus_results_to_excel(calc_results, "d")
-        if effects_daily: write_effect_results_to_excel(calc_results, "d")
-        if comps_daily: write_component_results_to_excel(calc_results, "d")
+        if buses_daily: calc_results.write_bus_results_to_excel("d")
+        if effects_daily: calc_results.write_effect_results_to_excel("d")
+        if comps_daily: calc_results.write_component_results_to_excel( "d")
         print("...Results to Excel (d) finished...")
 
         print("Writing results to Excel (h)...")
-        if buses_hourly: write_bus_results_to_excel(calc_results, "h")
-        if effects_hourly: write_effect_results_to_excel(calc_results, "h")
-        if comps_hourly: write_component_results_to_excel(calc_results, "h")
+        if buses_hourly: calc_results.write_bus_results_to_excel("h")
+        if effects_hourly: calc_results.write_effect_results_to_excel( "h")
+        if comps_hourly: calc_results.write_component_results_to_excel( "h")
         print("...Results to Excel (h) finished...")
 
         return calc_results
