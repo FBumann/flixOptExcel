@@ -175,9 +175,7 @@ def reorder_columns(df:pd.DataFrame, not_sorted_columns: List[str] = None):
     '''
     if isinstance(df, pd.Series): df = df.to_frame().T
 
-    means = df.sum()
-    sorted_columns = means.sort_values(ascending=False).index
-    sorted_df = df[sorted_columns]
+    sorted_df = df[sorted(df.columns)]
 
     # Select the remaining columns excluding the first two
     if not_sorted_columns is None:
