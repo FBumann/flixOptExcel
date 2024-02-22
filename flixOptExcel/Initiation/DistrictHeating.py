@@ -276,14 +276,14 @@ class DistrictHeatingSystem:
 
     def create_sinks_n_sources(self) -> dict:
         sinks_n_sources = {}
-        sinks_n_sources['Waermelast'] = cSink('Waermelast', group="Wärmelast_mit_Verlust",
+        sinks_n_sources['Waermebedarf'] = cSink('Waermebedarf', group="Wärmelast",
                                               sink=cFlow('Qth', bus=self.busses['Fernwaerme'],
-                                                         nominal_val=1, val_rel=self.time_series_data["Heat Demand"]))
+                                                         nominal_val=1, val_rel=self.time_series_data["SinkHeat"]))
 
-        sinks_n_sources['Waermelast_Netzverluste'] = cSink('Waermelast_Netzverluste', group="Wärmelast_mit_Verlust",
+        sinks_n_sources['Netzverluste'] = cSink('Netzverluste', group="Wärmelast_mit_Verlust",
                                                            sink=cFlow('Qth', bus=self.busses['Fernwaerme'],
                                                                       nominal_val=1,
-                                                                      val_rel=self.time_series_data["Heat Losses"]))
+                                                                      val_rel=self.time_series_data["SinkLossHeat"]))
 
         sinks_n_sources['StromSink'] = cSink('StromSink', sink=cFlow('Pel', bus=self.busses['StromEinspeisung']))
 
