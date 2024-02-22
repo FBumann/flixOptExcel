@@ -8,6 +8,7 @@ from abc import ABC
 from typing import Union, List, Any, Type
 
 from flixOpt.flixComps import *
+from flixOpt.flixCompsExperimental import KWKektB
 from flixOpt.flixStructure import cEffectType, cEnergySystem
 
 from .Modules import ExcelData
