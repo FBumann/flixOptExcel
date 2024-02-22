@@ -174,8 +174,8 @@ def reorder_columns(df:pd.DataFrame, not_sorted_columns: List[str] = None):
         DataFrame with the desired column order.
     '''
     if isinstance(df, pd.Series): df = df.to_frame().T
-
-    sorted_df = df[sorted(df.columns)]
+    sorted_columns = sorted(df.columns, key=lambda x: x.lower())
+    sorted_df = df.reindex(columns=sorted_columns)
 
     # Select the remaining columns excluding the first two
     if not_sorted_columns is None:
