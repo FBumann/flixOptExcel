@@ -318,10 +318,11 @@ class cExcelFcts():
         '''
 
         if resamply_by == "YE":
-            df_fernwaerme = self.calc.to_dataFrame("Fernwaerme", "in", grouped=False)  # ohne Wärmelast, ohne Speicher
-            df_fernwaerme.drop(columns=df_fernwaerme.filter(regex=r'^Speicher', axis=1).columns, axis=1, inplace=True)
+            df_fernwaerme = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=False)  # ohne Wärmelast, ohne Speicher
             df_fernwaerme_grouped = self.calc.group_df_by_mapping(df_fernwaerme)
-            df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped)
+            df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped, ["Wärmelast"])
+            df_empty = pd.DataFrame(0, index=df_fernwaerme_grouped_sorted.index, columns = ["_"])
+            df_fernwaerme_grouped_sorted = pd.concat([df_empty, df_fernwaerme_grouped_sorted], axis=1)
         else:
             df_fernwaerme_grouped = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=True, invert_Output=True)
             df_fernwaerme_grouped["Wärmelast"] = -1 * df_fernwaerme_grouped["Wärmelast"]  # reinverting
@@ -356,6 +357,8 @@ class cExcelFcts():
         if df_invest.empty:
             return df_invest
         else:
+            df_empty = pd.DataFrame(0, index=df_invest.index, columns = ["_","__"])
+            df_invest = pd.concat([df_empty, df_invest], axis=1)
             return resample_data(df_invest, self.calc.years, resamply_by, rs_method)
 
     def get_waermekosten(self, with_fix_costs, resamply_by):
@@ -376,7 +379,7 @@ class cExcelFcts():
         -------
         pd.DataFrame
         '''
-        heat = self.calc.to_dataFrame("Fernwaerme", "inout", invert_Output=False)["Waermelast__Qth"]
+        heat = self.calc.to_dataFrame("Waermebedarf", "in")
 
         if with_fix_costs:
             costs_total = pd.Series(self.calc.get_effect_results(effect_name="costs", origin="all", as_TS=True),
@@ -431,7 +434,7 @@ class cExcelFcts():
         -------
         pd.DataFrame
         '''
-        heat = self.calc.to_dataFrame("Fernwaerme", "inout", invert_Output=False)["Waermelast__Qth"]
+        heat = self.calc.to_dataFrame("Waermebedarf", "in")
 
         CO2 = pd.DataFrame(self.calc.get_effect_results(effect_name="CO2FW", origin="operation", as_TS=True),
                            index=self.calc.timeSeries)
@@ -562,11 +565,11 @@ class cExcelFcts():
         return df
 
     def get_fernwaerme_last_and_loss(self, resamply_by, rs_method):
-        df_fernwaerme_last = self.calc.to_dataFrame("Fernwaerme", "out", invert_Output=False).filter(like='Waermelast')
-        df_fernwaerme_last = reorder_columns(df_fernwaerme_last)
-        df_summed = resample_data(df_fernwaerme_last, self.calc.years, resamply_by, rs_method)
-        df_verluste_summed = (df_summed['Waermelast_Netzverluste__Qth'] / df_summed.sum(axis=1) * 100).rename(
-            "Verlust[%]").round(2)
+        df_demand = self.calc.to_dataFrame("Waermebedarf", "in")
+        df_loss = self.calc.to_dataFrame("Netzverluste", "in")
+        df = pd.concat([df_demand, df_loss], axis=1)
+        df_summed = resample_data(df, self.calc.years, resamply_by, rs_method)
+        df_verluste_summed = (df_summed.iloc[:, 1] / df_summed.sum(axis=1) * 100).rename("Verlust[%]").round(2)
 
         return pd.concat([df_summed, df_verluste_summed], axis=1)
 
