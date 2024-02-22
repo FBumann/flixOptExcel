@@ -51,7 +51,7 @@ class ExcelModel:
     def solve_model(self, solver_name: str, gap_frac: float = 0.01, timelimit: int = 3600):
         self.print_comps_in_categories()
         self._adjust_calc_name_and_results_folder()
-        self._create_dirs_and_copy_input_excel_file()
+        self._create_dirs_and_save_input_data()
 
         calculation = cCalculation(self.calc_name, self.district_heating_system.final_model, 'pyomo',
                                    pathForSaving=self.final_directory)  # create Calculation
@@ -156,9 +156,14 @@ class ExcelModel:
 
         return calc_results
 
-    def _create_dirs_and_copy_input_excel_file(self):
+    def _create_dirs_and_save_input_data(self):
         os.mkdir(self.final_directory)
-        shutil.copy2(self.input_excel_file_path, os.path.join(self.final_directory, "Inputdata.xlsx"))
+        input_data_path = os.path.join(self.final_directory, "Inputdata.xlsx")
+        shutil.copy2(self.input_excel_file_path, input_data_path)
+
+        with (pd.ExcelWriter(input_data_path, mode="a", engine="openpyxl", if_sheet_exists='overlay') as writer):
+            df = self.district_heating_system.time_series_data_internal
+            df.to_excel(writer, index=True, sheet_name="Internally_computed_data")
 
         calc_info = f"""calc = flixPostXL(nameOfCalc='{self.calc_name}', 
         results_folder='{os.path.join(self.final_directory, 'SolveResults')}', 
@@ -166,6 +171,9 @@ class ExcelModel:
 
         with open(os.path.join(self.final_directory, "calc_info.txt"), "w") as log_file:
             log_file.write(calc_info)
+
+        with open(os.path.join(self.final_directory, "component_data.txt"), "w") as log_file:
+            pp(self.excel_data.components_data, log_file)
 
     def _adjust_calc_name_and_results_folder(self):
         if os.path.exists(self.final_directory):
@@ -187,6 +195,7 @@ class ExcelModel:
 class DistrictHeatingSystem:
     def __init__(self, excel_data: ExcelData):
         self.time_series_data = excel_data.time_series_data
+        self.time_series_data_internal = pd.DataFrame(index=self.time_series_data.index)
         self.components_data = excel_data.components_data
 
         self.years = excel_data.years
@@ -338,23 +347,33 @@ class DistrictHeatingSystem:
                     comp = Kessel(**component_data)
                     comp.add_to_model(self)
                 elif comp_type == "KWK":
-                    pass
+                    comp = KWK(**component_data)
+                    comp.add_to_model(self)
                 elif comp_type == "KWKekt":
-                    pass
+                    comp = KWKekt(**component_data)
+                    comp.add_to_model(self)
                 elif comp_type == "Waermepumpe":
-                    pass
+                    comp = Waermepumpe(**component_data)
+                    comp.add_to_model(self)
                 elif comp_type == "EHK":
-                    pass
+                    comp = EHK(**component_data)
+                    comp.add_to_model(self)
                 elif comp_type == "AbwaermeWP":
-                    pass
+                    comp = AbwaermeWaermepumpe(**component_data)
+                    comp.add_to_model(self)
                 elif comp_type == "AbwaermeHT":
-                    pass
+                    comp = Abwaerme(**component_data)
+                    comp.add_to_model(self)
                 elif comp_type == "Rueckkuehler":
-                    pass
+                    comp = Rueckkuehler(**component_data)
+                    comp.add_to_model(self)
+                elif comp_type == "Geothermie":
+                    comp = Geothermie(**component_data)
+                    comp.add_to_model(self)
                 else:
                     raise TypeError(f"{comp_type} is not a valid Type of Component. "
                                     f"Implemented types: (KWK, KWKekt, Kessel, EHK, Waermepumpe, "
-                                    f"AbwaermeWP, AbwaermeHT, Rueckkuehler, Speicher.")
+                                    f"AbwaermeWP, AbwaermeHT, Rueckkuehler, Speicher, Geothermie.")
 
     def create_exists(self, first_year: Union[int, type(None)], last_year: Union[int, type(None)]) -> np.ndarray:
         '''
@@ -425,7 +444,7 @@ class DistrictHeatingComponent(ABC):
     def _convert_value_to_TS(self, value: Union[float, int, str], time_series_data: pd.DataFrame) -> np.ndarray:
         if isinstance(value, (int, float)):
             return np.ones(len(time_series_data.index)) * value
-        if value in time_series_data.keys():
+        elif value in time_series_data.keys():
             return time_series_data[value].to_numpy()
         else:
             raise Exception(f"{value} of '{self.label}' is not in given TimeSeries Data.")
@@ -561,7 +580,7 @@ class DistrictHeatingComponent(ABC):
         return cInvestArgs(fixCosts=fixCosts, specificCosts=specificCosts,
                            investmentSize_is_fixed=investmentSize_is_fixed,
                            investment_is_optional=investment_is_optional,
-                           min_investmentSize=self.minimum_thermal_power, max_investmentSize=self.minimum_thermal_power)
+                           min_investmentSize=self.thermal_power_min, max_investmentSize=self.thermal_power_max)
 
 
 class KWK(DistrictHeatingComponent):
@@ -570,7 +589,7 @@ class KWK(DistrictHeatingComponent):
         self.eta_th = self._typechecked_attr("eta_th", [float, str])
         self.eta_el = self._typechecked_attr("eta_el", [float, str])
         self.fuel_type = self._typechecked_attr("Brennstoff", [str])
-        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Brennstoff", [int, float])
+        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Brennstoff", [int, float], 0)
 
     def add_to_model(self, district_heating_system: DistrictHeatingSystem):
         '''
@@ -578,7 +597,8 @@ class KWK(DistrictHeatingComponent):
         '''
         comp = cKWK(label=self.label,
                     group=self.group,
-                    eta=self._convert_value_to_TS(self.eta_th, district_heating_system.time_series_data),
+                    eta_th=self._convert_value_to_TS(self.eta_th, district_heating_system.time_series_data),
+                    eta_el=self._convert_value_to_TS(self.eta_el, district_heating_system.time_series_data),
                     exists=self.exists(district_heating_system),
                     Q_th=cFlow(label='Qth',
                                bus=district_heating_system.busses["Fernwaerme"],
@@ -603,17 +623,14 @@ class KWK(DistrictHeatingComponent):
         Information about fuel costs per flow hour
         '''
         return {
-            dhs.effects["costs"]:
-                self._convert_value_to_TS("StromBezug", dhs.time_series_data) +
-                self._convert_value_to_TS(self.extra_fuel_costs, dhs.time_series_data),
-            dhs.effects["CO2FW"]:
-                self.co2_reward_for_electricity_production(dhs)
+            dhs.effects["costs"]: -1 * self._convert_value_to_TS("Strom", dhs.time_series_data),
+            dhs.effects["CO2FW"]: self._co2_reward_for_electricity_production(dhs)
         }
 
-    def co2_reward_for_electricity_production(self, district_heating_system: DistrictHeatingSystem):
-        t_vl = district_heating_system.time_series_data["TVL_FWN"] + 273.15
-        t_rl = district_heating_system.time_series_data["TVL_FWN"] + 273.15
-        t_amb = district_heating_system.time_series_data["Tamb"] + 273.15
+    def _co2_reward_for_electricity_production(self, district_heating_system: DistrictHeatingSystem) -> np.ndarray:
+        t_vl = district_heating_system.time_series_data["TVL_FWN"].to_numpy() + 273.15
+        t_rl = district_heating_system.time_series_data["TRL_FWN"].to_numpy() + 273.15
+        t_amb = district_heating_system.time_series_data["Tamb"].to_numpy() + 273.15
         n_el = self._convert_value_to_TS(self.eta_el, district_heating_system.time_series_data)
         n_th = self._convert_value_to_TS(self.eta_th, district_heating_system.time_series_data)
         co2_fuel: float = district_heating_system.co2_factors.get("Erdgas", 0)
@@ -646,7 +663,7 @@ class Kessel(DistrictHeatingComponent):
         super().__init__(**kwargs)
         self.eta_th = self._typechecked_attr("eta_th", [float, str])
         self.fuel_type = self._typechecked_attr("Brennstoff", [str])
-        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Brennstoff", [int, float])
+        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Brennstoff", [int, float], 0)
 
     def fuel_costs_per_flow_hour(self, dhy: DistrictHeatingSystem) -> dict:
         '''
@@ -694,6 +711,10 @@ class Storage(DistrictHeatingComponent):
         self.costs_cap_var = self._typechecked_attr("Fixkosten pro MWh und Jahr", [int, float], None)
         self.fund_cap_var = self._typechecked_attr("Förderung pro MWh und Jahr", [int, float], None)
 
+        self.capacity_min = 0
+        self.capacity_max = 1e9
+        self._handle_capacity()
+
     def add_to_model(self, dh_sys: DistrictHeatingSystem):
         # Invest
         invest_args_load = self.invest_args_thermal_power(dh_sys)
@@ -704,14 +725,14 @@ class Storage(DistrictHeatingComponent):
                                                       description=f"Couple thermal power of in and out flow of {self.label}",
                                                       min_investSum=0, max_investSum=0)
             invest_args_load.specificCosts[effect_couple_thermal_power] = -1
-            invest_args_unload.specificCosts = {effect_couple_thermal_power: -1}
+            invest_args_unload.specificCosts = {effect_couple_thermal_power: 1}
 
         storage = cStorage(label=self.label,
                            group=self.group,
                            capacity_inFlowHours=self.capacity,
                            eta_load=self.eta_load,
                            eta_unload=self.eta_unload,
-                           max_rel_chargeState=self.calculate_relative_temperature(dh_sys),
+                           max_rel_chargeState=self.calculate_relative_temperature(dh_sys, add_one=True),
                            exists=self.exists(dh_sys),
                            investArgs=self.invest_args_capacity(dh_sys),
                            inFlow=cFlow(label='QthLoad',
@@ -787,16 +808,31 @@ class Storage(DistrictHeatingComponent):
                            investment_is_optional=investment_is_optional,
                            min_investmentSize=min_investmentSize, max_investmentSize=max_investmentSize)
 
-    def calculate_relative_temperature(self, district_heating_system: DistrictHeatingSystem) -> np.ndarray:
+    def _handle_capacity(self):
+        if isinstance(self.capacity, str):
+            if self._check_str_format_min_max(self.capacity):
+                self.capacity_min = float(self.capacity.split("-")[0])
+                self.capacity_max = float(self.capacity.split("-")[1])
+                self.capacity = None
+            else:
+                raise Exception(f"Wrong format of string for thermal_power '{self.capacity}'."
+                                f"If capacity is passed as a string, it must be of the format 'min-max'")
+
+
+    def calculate_relative_temperature(self, district_heating_system: DistrictHeatingSystem, add_one:bool=False) -> np.ndarray:
         # TODO: Normalize automatically?
-        low_temp = district_heating_system.time_series_data["TRL_FWN"]
-        high_temp = district_heating_system.time_series_data["TVL_FWN"]
+        low_temp = district_heating_system.time_series_data["TRL_FWN"].to_numpy()
+        high_temp = district_heating_system.time_series_data["TVL_FWN"].to_numpy()
         dt_max = 65
         if self.consider_temperature:
             max_rel = ((high_temp - low_temp) / dt_max)
+        else:
+            max_rel = np.ones(len(district_heating_system.time_series_data.index))
+
+        if add_one:
             return np.append(max_rel, max_rel[-1])
         else:
-            return np.ones(len(district_heating_system.time_series_data.index))
+            return max_rel
 
 
 class Waermepumpe(DistrictHeatingComponent):
@@ -804,10 +840,10 @@ class Waermepumpe(DistrictHeatingComponent):
         super().__init__(**kwargs)
         self.cop_value = self._typechecked_attr("COP", [int, float, str])
         self.calc_cop = self._typechecked_attr("COP berechnen", [bool], False)
-        self.operation_funding_bew = self._typechecked_attr("Betriebskostenförderung BEW", [int, float, str], False)
+        self.operation_funding_bew = self._typechecked_attr("Betriebskostenförderung BEW", [int, float], 0)
         self.lower_bound_of_operation = self._typechecked_attr("Untergrenze für Einsatz", [int, float], None)
         self.lower_bound_ts = self._typechecked_attr("Zeitreihe für Einsatzbeschränkung", [str], None)
-        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Strom", [int, float])
+        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Strom", [int, float], 0)
 
     def add_to_model(self, district_heating_system: DistrictHeatingSystem):
         '''
@@ -821,6 +857,7 @@ class Waermepumpe(DistrictHeatingComponent):
                                     bus=district_heating_system.busses["Fernwaerme"],
                                     nominal_val=self.thermal_power,
                                     max_rel=self.limit_usage(district_heating_system),
+                                    costsPerFlowHour=self.thermal_reward_per_flow_hour(district_heating_system),
                                     investArgs=self.invest_args_thermal_power(district_heating_system),
                                     **self.kwargs(district_heating_system)
                                     ),
@@ -838,7 +875,7 @@ class Waermepumpe(DistrictHeatingComponent):
         '''
         costs_dict = {
             dhs.effects["costs"]:
-                self._convert_value_to_TS("StromBezug", dhs.time_series_data) +
+                self._convert_value_to_TS("Strom", dhs.time_series_data) +
                 self._convert_value_to_TS(self.extra_fuel_costs, dhs.time_series_data)
         }
 
@@ -866,14 +903,13 @@ class Waermepumpe(DistrictHeatingComponent):
             if not self.cop_value in district_heating_system.time_series_data.columns:
                 raise ValueError(f"The Time Series {self.cop_value} to calculate the COP of {self.label} could not be found.")
             else:
-                return self._calculate_cop(district_heating_system.time_series_data[self.cop_value],
-                                           district_heating_system.time_series_data["TVL_FWN"]
+                return self._calculate_cop(district_heating_system.time_series_data[self.cop_value].to_numpy(),
+                                           district_heating_system.time_series_data["TVL_FWN"].to_numpy()
                                            )
         else:
             return self._convert_value_to_TS(self.cop_value, district_heating_system.time_series_data)
 
-
-    def _calculate_cop(self, TqTS, TsTS, eta=0.5) -> np.ndarray:
+    def _calculate_cop(self, TqTS:np.ndarray, TsTS:np.ndarray, eta=0.5) -> np.ndarray:
         '''
         Calculates the COP of a heatpump per Timestep from the Temperature of Heat sink and Heat source in Kelvin
         Parameters
@@ -895,6 +931,46 @@ class Waermepumpe(DistrictHeatingComponent):
         TsTS = TsTS + 273.15
         COPTS = (TsTS / (TsTS - TqTS)) * eta
         return COPTS
+
+    def thermal_reward_per_flow_hour(self, district_heating_system: DistrictHeatingSystem) -> dict:
+        '''
+        This function calculates the operation funding of a Heat Pump (german program BEW).
+        The funding is limited to 90% of electricity costs.
+
+        Parameters
+        ----------
+        Returns
+        -------
+        dict
+            A dict with the funding per MW_th as a ndarray
+        '''
+
+        if self.operation_funding_bew == 0:
+            return {}
+        else:
+            if not isinstance(self.first_year, int):
+                raise Exception(f"Need to specify a Year of Operation start for {self.label} to use HP "
+                                f"operation funding, because its limited to 10 years.")
+
+            cop = self.cop(district_heating_system)
+            # Förderung pro MW_th
+            fund_per_mw_th = (cop - 1 / cop) * self.operation_funding_bew
+
+            # Stromkosten pro MW_th
+            costs_for_electricity = self.electricity_costs_per_flow_hour(district_heating_system)[district_heating_system.effects["costs"]]
+            el_costs_per_MWth = costs_for_electricity / cop
+
+            # Begrenzung der Förderung auf 90% der Stromkosten
+            fund_per_mw_th = np.where(fund_per_mw_th > el_costs_per_MWth * 0.9, el_costs_per_MWth * 0.9,
+                                      fund_per_mw_th)
+
+            # Begrenzung auf 10 Jahre
+            value_per_year = [1 if self.first_year <= num <= self.first_year + 9 else 0
+                              for num in district_heating_system.years]
+            correction_factors = np.array(repeat_elements_of_list(value_per_year, 8760))
+            fund_per_mw_th = fund_per_mw_th * correction_factors
+
+            return {district_heating_system.effects["funding"]: fund_per_mw_th}
 
 
 class AbwaermeWaermepumpe(Waermepumpe):

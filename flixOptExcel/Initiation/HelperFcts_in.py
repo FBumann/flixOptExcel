@@ -164,7 +164,7 @@ def handle_component_data(df: pd.DataFrame) -> dict:
 
     # <editor-fold desc="Check for invalid Comp types">
     Erzeugertypen = ('KWK', 'Kessel', 'Speicher', 'EHK', 'Waermepumpe', 'AbwaermeHT', 'AbwaermeWP', 'Rueckkuehler',
-                     'KWKekt')  # DONT CHANGE!!!
+                     'KWKekt', 'Geothermie')  # DONT CHANGE!!!
     for typ in df.iloc[0, :].dropna():
         if typ not in Erzeugertypen: raise Exception(
             f"{typ} is not an accepted type of Component. Accepted types are: {Erzeugertypen}")

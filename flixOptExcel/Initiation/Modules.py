@@ -91,8 +91,6 @@ class ExcelData:
         missing_limits = len(self.years) - len(co2_limit)
         if missing_limits > 0:
             co2_limit.extend([None] * missing_limits)
-        elif missing_limits < 0:
-            raise Exception(f"There are more CO2-Limits given than Years where specified.")
         else:
             pass
 
@@ -189,7 +187,7 @@ class ExcelData:
             li = []  # Initialize an empty list to store DataFrames
             for sheet_name in self._sheetnames_ts_data_extra:
                 # Read the Excel sheet, skipping the first two rows, and drop specified columns
-                df = pd.read_excel(self.file_path, sheet_name=sheet_name, skiprows=[1, 2]).drop(columns=["Tag", "Uhrzeit"])
+                df = pd.read_excel(self.file_path, sheet_name=sheet_name, skiprows=[1, 2])#.drop(columns=["Date"])
                 li.append(df)  # Append the DataFrame to the list
 
             time_series_data_extra = pd.concat(li, axis=0, ignore_index=True)  # Concatenate the DataFrames in the list
