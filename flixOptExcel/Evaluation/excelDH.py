@@ -321,7 +321,7 @@ class cExcelFcts():
             df_fernwaerme = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=False)  # ohne Wärmelast, ohne Speicher
             df_fernwaerme_grouped = self.calc.group_df_by_mapping(df_fernwaerme)
             df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped, ["Wärmelast"])
-            df_empty = pd.DataFrame(0, index=df_fernwaerme_grouped_sorted.index, columns = ["_"])
+            df_empty = pd.DataFrame(0, index=df_fernwaerme_grouped_sorted.index, columns = ["*"])
             df_fernwaerme_grouped_sorted = pd.concat([df_empty, df_fernwaerme_grouped_sorted], axis=1)
         else:
             df_fernwaerme_grouped = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=True, invert_Output=True)
@@ -357,7 +357,7 @@ class cExcelFcts():
         if df_invest.empty:
             return df_invest
         else:
-            df_empty = pd.DataFrame(0, index=df_invest.index, columns = ["_","__"])
+            df_empty = pd.DataFrame(0, index=df_invest.index, columns = ["*","**"])
             df_invest = pd.concat([df_empty, df_invest], axis=1)
             return resample_data(df_invest, self.calc.years, resamply_by, rs_method)
 
