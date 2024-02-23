@@ -67,6 +67,11 @@ class ExcelModel:
         calculation.solve(solver_props, nameSuffix='_' + solver_name,
                           aPath=os.path.join(self.final_directory, "SolveResults"))
         self.calc_name = calculation.nameOfCalc
+        calc_results = self.load_results()
+
+        main_results = calc_results.infos["modboxes"]["info"][0]["main_results"]
+        with open(os.path.join(calc_results.folder, "MainResults.txt"), "w") as log_file:
+            pp(main_results, log_file)
 
     def load_results(self) -> flixPostXL:
         return flixPostXL(nameOfCalc=self.calc_name,
@@ -121,10 +126,6 @@ class ExcelModel:
         """
 
         calc_results = self.load_results()
-
-        main_results = calc_results.infos["modboxes"]["info"][0]["main_results"]
-        with open(os.path.join(calc_results.folder, "MainResults.txt"), "w") as log_file:
-            pp(main_results, log_file)
 
         self.visual_representation.write_html(os.path.join(calc_results.folder, 'Model_structure.html'))
 
