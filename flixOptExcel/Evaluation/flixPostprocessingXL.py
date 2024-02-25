@@ -31,11 +31,6 @@ class flixPostXL(flix_results):
         for key in effects:
             self.results.pop(key, None)
 
-        # add paths of templates
-        path_recources = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources")
-        self.templ_path_excel_main = os.path.join(path_recources, "TemplateMain.xlsx")
-        self.templ_path_excel_year = os.path.join(path_recources, "TemplateYear.xlsx")
-
     def _add_InvestTS_to_results(self):
         '''
         Add all the investments to the results of calc1 by creating a Timeseries from the total value for each Investment

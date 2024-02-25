@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import os.path
 from openpyxl import load_workbook
+from pathlib import Path
 
 from flixOptExcel.Evaluation.flixPostprocessingXL import flixPostXL
 from flixOptExcel.Evaluation.HelperFcts_post import resample_data, rs_in_two_steps, reorder_columns
@@ -53,7 +54,9 @@ def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "de
     else:
         output_file_path = custom_output_file_path
 
-    wb = load_workbook(calc.templ_path_excel_main)
+    templ_path_excel_main = Path(__file__).resolve().parent.parent / "resources" / "Template_Evaluation_Overview.xlsx"
+
+    wb = load_workbook(templ_path_excel_main)
     filename = f"Jahresübersicht-{calc.infos['calculation']['name']}.xlsx"
     path_excel_main = os.path.join(output_file_path, filename)
     wb.save(path_excel_main)
@@ -192,8 +195,10 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
     print("......computation of data finished")
 
+    templ_path_excel_year = Path(__file__).resolve().parent.parent / "resources" / "Template_Evaluation_Year.xlsx"
+
     for index, year in enumerate(excel.calc.years):
-        wb = load_workbook(calc.templ_path_excel_year)
+        wb = load_workbook(templ_path_excel_year)
         filename = f"Jahr_{year}-{excel.calc.infos['calculation']['name']}.xlsx"
         path_excel_year = os.path.join(output_file_path, filename)
         wb.save(path_excel_year)
