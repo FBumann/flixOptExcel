@@ -14,7 +14,8 @@ from flixOpt.flixStructure import cEffectType, cEnergySystem
 
 from .Modules import ExcelData
 from flixOptExcel.Evaluation.flixPostprocessingXL import cModelVisualizer, cVisuData, flixPostXL
-from flixOptExcel.Initiation.HelperFcts_in import repeat_elements_of_list
+from flixOptExcel.Initiation.HelperFcts_in import repeat_elements_of_list, calculate_hourly_rolling_mean, \
+    linear_interpolation_with_bounds
 
 
 class ExcelModel:
@@ -201,6 +202,8 @@ class DistrictHeatingSystem:
         self.timeSeries = excel_data.time_series_data.index.to_numpy()
         self.co2_limit_dict = excel_data.co2_limits
         self.co2_factors = excel_data.co2_factors
+
+        self._handle_heating_network()
 
         self.busses = self.create_busses()
 
@@ -395,6 +398,62 @@ class DistrictHeatingSystem:
                 return np.ones(len(self.time_series_data.index))
             else:
                 return np.array(repeat_elements_of_list(list_to_repeat))
+
+    def _handle_heating_network(self):
+        """
+        # TODO: Redo docstring
+        Handle heating network parameters in the input DataFrame.
+
+        This function calculates or checks the presence of key parameters related to the heating network,
+        including supply temperature (TVL_FWN), return temperature (TRL_FWN), and network losses (SinkLossHeat).
+        If not already present in the dataframe, creates them and returns the filled dataframe
+
+
+        Raises:
+        - Exception: If one of "TVL_FWN" or "TRL_FWN" is not present in the input DataFrame and needs calculation.
+
+        Example:
+        ```python
+        handle_heating_network(my_dataframe)
+        ```
+
+        """
+
+        self.time_series_data['Tamb24mean'] = calculate_hourly_rolling_mean(series=self.time_series_data['Tamb'],
+                                                                            window_size=24)
+        if "TVL_FWN" in self.time_series_data.keys() and "TRL_FWN" not in self.time_series_data.keys():
+            raise Exception("If 'TVL_FWN' is given, 'TRL_FWN' also has to be in the Input Dataset")
+        elif "TVL_FWN" not in self.time_series_data.keys() and "TRL_FWN" in self.time_series_data.keys():
+            raise Exception("If 'TRL_FWN' is given, 'TVL_FWN' also has to be in the Input Dataset")
+        elif "TVL_FWN" and "TRL_FWN" in self.time_series_data.keys():
+            print("TVL_FWN and TRL_FWN where included in the input data set")
+        else:
+            # Berechnung der Vorlauftemperatur
+            # TODO: Add Error Handling
+            df_tvl = pd.Series()
+            i=0
+            for year, factors in self.heating_network_temperature_curves.items():
+                df = linear_interpolation_with_bounds(input_data=self.time_series_data["Tamb24mean"].iloc[i*8760:(i+1)*8760],
+                                                      lower_bound=factors["lb"],
+                                                      upper_bound=factors["ub"],
+                                                      value_below_bound=factors["value_lb"],
+                                                      value_above_bound=factors["value_ub"])
+                df_tvl = pd.concat([df_tvl, df])
+                i=i+1
+
+            self.time_series_data["TVL_FWN"] = df_tvl
+
+            # TODO: Custom Function?
+            self.time_series_data["TRL_FWN"] = np.ones_like(self.time_series_data["TVL_FWN"]) * 60
+
+        if "SinkLossHeat" not in self.time_series_data.keys():  # Berechnung der Netzverluste
+            k_loss_netz = 0.4640  # in MWh/K        # Vereinfacht, ohne Berücksichtigung einer sich ändernden Netzlänge
+            # TODO: Factor into excel
+            self.time_series_data["SinkLossHeat"] = (k_loss_netz *
+                                                     ((self.time_series_data["TVL_FWN"] + self.time_series_data["TRL_FWN"]) / 2 -
+                                                      self.time_series_data["Tamb"]))
+        else:
+            print("Heating losses where included in the input data set")
 
 
 class DistrictHeatingComponent(ABC):
