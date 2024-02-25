@@ -325,10 +325,10 @@ class cExcelFcts():
         if resamply_by == "YE":
             df_fernwaerme = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=False)  # ohne Wärmelast, ohne Speicher
             df_fernwaerme_grouped = self.calc.group_df_by_mapping(df_fernwaerme)
-            df_fernwaerme_grouped.drop(columns=["Wärmelast"], inplace=True)
+            df_fernwaerme_grouped.drop(columns=["Wärmelast_mit_Verlust"], inplace=True)
         else:
             df_fernwaerme_grouped = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=True)
-            df_fernwaerme_grouped["Wärmelast"] = -1 * df_fernwaerme_grouped["Wärmelast"]  # reinverting
+            df_fernwaerme_grouped["Wärmelast_mit_Verlust"] = -1 * df_fernwaerme_grouped["Wärmelast_mit_Verlust"]  # reinverting
             df_fernwaerme_grouped = pd.concat([df_fernwaerme_grouped, self.calc.getFuelCosts()["Strompreis"]], axis=1)
 
         df_fernwaerme_erz_nach_techn = resample_data(df_fernwaerme_grouped, self.calc.years, resamply_by, rs_method)
@@ -382,7 +382,7 @@ class cExcelFcts():
         -------
         pd.DataFrame
         '''
-        heat = self.calc.to_dataFrame("Waermebedarf", "in")
+        heat = self.calc.to_dataFrame("Waermelast", "in")
 
         if with_fix_costs:
             costs_total = pd.Series(self.calc.get_effect_results(effect_name="costs", origin="all", as_TS=True),
@@ -437,7 +437,7 @@ class cExcelFcts():
         -------
         pd.DataFrame
         '''
-        heat = self.calc.to_dataFrame("Waermebedarf", "in")
+        heat = self.calc.to_dataFrame("Waermelast", "in")
 
         CO2 = pd.DataFrame(self.calc.get_effect_results(effect_name="CO2FW", origin="operation", as_TS=True),
                            index=self.calc.timeSeries)
@@ -568,8 +568,8 @@ class cExcelFcts():
         return df
 
     def get_fernwaerme_last_and_loss(self, resamply_by, rs_method):
-        df_demand = self.calc.to_dataFrame("Waermebedarf", "in")
-        df_loss = self.calc.to_dataFrame("Netzverluste", "in")
+        df_demand = self.calc.to_dataFrame("Waermelast", "in")
+        df_loss = self.calc.to_dataFrame("Waermelast_Netzverluste", "in")
         df = pd.concat([df_demand, df_loss], axis=1)
         df_summed = resample_data(df, self.calc.years, resamply_by, rs_method)
         df_verluste_summed = (df_summed.iloc[:, 1] / df_summed.sum(axis=1) * 100).rename("Verlust[%]").round(2)
@@ -638,6 +638,8 @@ class cExcelFcts():
                       .str.strip()
                       )
         df.columns = [col[0].upper() + col[1:] for col in df.columns]
+
+        df.rename(columns={"Wärmelast_mit_Verlust": "Wärmelast"}, inplace=True)
 
         # Merge logic
         # Directly assign matched columns
