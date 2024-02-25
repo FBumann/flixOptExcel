@@ -2,12 +2,10 @@ import pandas as pd
 import numpy as np
 import os.path
 from openpyxl import load_workbook
-from openpyxl.chart import BarChart, Reference,LineChart
-from openpyxl.utils.dataframe import dataframe_to_rows
-from typing import Literal, Union
+from pathlib import Path
 
 from flixOptExcel.Evaluation.flixPostprocessingXL import flixPostXL
-from flixOptExcel.Evaluation.HelperFcts_post import resample_data, rs_in_two_steps, getFuelCosts, reorder_columns
+from flixOptExcel.Evaluation.HelperFcts_post import resample_data, rs_in_two_steps, reorder_columns
 
 
 def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "default"):
@@ -56,7 +54,9 @@ def run_excel_graphics_main(calc: flixPostXL, custom_output_file_path: str = "de
     else:
         output_file_path = custom_output_file_path
 
-    wb = load_workbook(calc.templ_path_excel_main)
+    templ_path_excel_main = Path(__file__).resolve().parent.parent / "resources" / "Template_Evaluation_Overview.xlsx"
+
+    wb = load_workbook(templ_path_excel_main)
     filename = f"Jahresübersicht-{calc.infos['calculation']['name']}.xlsx"
     path_excel_main = os.path.join(output_file_path, filename)
     wb.save(path_excel_main)
@@ -195,8 +195,10 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
     print("......computation of data finished")
 
+    templ_path_excel_year = Path(__file__).resolve().parent.parent / "resources" / "Template_Evaluation_Year.xlsx"
+
     for index, year in enumerate(excel.calc.years):
-        wb = load_workbook(calc.templ_path_excel_year)
+        wb = load_workbook(templ_path_excel_year)
         filename = f"Jahr_{year}-{excel.calc.infos['calculation']['name']}.xlsx"
         path_excel_year = os.path.join(output_file_path, filename)
         wb.save(path_excel_year)
@@ -244,14 +246,14 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
 
             # Wärmeerzeugung als Jahresdauerlinien (Tagesmittelwerte)
             df = df_fernwaerme_erz_nach_techn_D[df_fernwaerme_erz_nach_techn_D.index.year == year]
-            df.sort_values("Wärmelast_mit_Verlust", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last-D")
+            df.sort_values("Wärmelast", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last-D")
             df.sort_values("Strompreis", ascending=False,ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Strom-D")
 
             print(f"......Year-{year} finished (short version)")
             if not short_version:
                 # Wärmeerzeugung als Jahresdauerlinien (Stundenwerte)
                 df = df_fernwaerme_erz_nach_techn_H[df_fernwaerme_erz_nach_techn_H.index.year == year]
-                df.sort_values("Wärmelast_mit_Verlust", ascending=False, ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last")
+                df.sort_values("Wärmelast", ascending=False, ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Last")
                 df.sort_values("Strompreis", ascending=False, ignore_index=True).to_excel(writer, index=True, sheet_name="WärmeErz-Strom")
 
                 # Wärmeerzeugung im Februar und Juli (Stundenwerte)
@@ -277,218 +279,6 @@ def run_excel_graphics_years(calc: flixPostXL, short_version = False, custom_out
             # TODO: weitere Grafiken
 
     print("...Annual Plots to Excel finished")
-
-def write_bus_results_to_excel(calc: flixPostXL, resample_by:Union["YE", "d", "h"] = "d",
-                               custom_output_file_path: str = "default"):
-    """
-    Save the in- and out-flows of every bus to an Excel file.
-
-    Parameters
-    ----------
-    calc : flixPostXL
-        The flixPostXL object containing the calculation results.
-    resample_by : str, optional
-        The time frequency for resampling data (e.g., 'd' for daily), by default "d".
-        Allowed values are 'YE' (yearly), 'd' (daily), and 'h' (hourly).
-    custom_output_file_path : str, optional
-        Custom path to save the Excel file
-
-    Returns
-    -------
-    None
-    """
-    print(f"...Writing Bus Results ({resample_by}) to Excel...")
-
-    if custom_output_file_path == "default":
-        output_file_path = calc.folder
-    else:
-        output_file_path = custom_output_file_path
-
-    filename = f"Buses_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
-    path_excel = os.path.join(output_file_path, filename)
-
-    for bus_name in calc.buses:
-        data = calc.to_dataFrame(busOrComp=bus_name, direction="inout", invert_Output=True) * -1
-        data = resample_data(data_frame=data, target_years=calc.years, resampling_by=resample_by, resampling_method="mean")
-        df_to_excel_w_chart(data, path_excel, bus_name, "MW", "Time")
-
-    print(f"......Buses ({resample_by}) finished")
-
-def write_component_results_to_excel(calc: flixPostXL, resample_by:Union["YE", "d", "h"] = "d",
-                                     custom_output_file_path: str = "default"):
-    """
-    Save the in- and out-flows of every component to an Excel file.
-
-    Parameters
-    ----------
-    calc : flixPostXL
-        The flixPostXL object containing the calculation results.
-    resample_by : str, optional
-        The time frequency for resampling data (e.g., 'd' for daily), by default "d".
-        Allowed values are 'YE' (yearly), 'd' (daily), and 'h' (hourly).
-    custom_output_file_path : str, optional
-        Custom path to save the Excel file
-
-    Returns
-    -------
-    None
-    """
-    print(f"...Writing Components Results ({resample_by}) to Excel...")
-
-    if custom_output_file_path == "default":
-        output_file_path = calc.folder
-    else:
-        output_file_path = custom_output_file_path
-
-    filename = f"Comps_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
-    path_excel = os.path.join(output_file_path, filename)
-
-    for comp_name in calc.comps:
-        data = calc.to_dataFrame(busOrComp=comp_name, direction="inout", invert_Output=True) * -1
-        data = resample_data(data_frame=data, target_years=calc.years, resampling_by=resample_by, resampling_method="mean")
-        df_to_excel_w_chart(data, path_excel, comp_name, "MW", "Time")
-
-    print(f"......Components ({resample_by}) finished")
-
-def write_effect_results_to_excel(calc: flixPostXL, resample_by:Union["YE", "d", "h"] = "d",
-                                  custom_output_file_path: str = "default"):
-    """
-    Save summarized effects data to an Excel file.
-
-    Parameters
-    ----------
-    calc : flixPostXL
-        The flixPostXL object containing the calculation results.
-    resample_by : str, optional
-        The time frequency for resampling data (e.g., 'd' for daily), by default "d".
-        Allowed values are 'YE' (yearly), 'd' (daily), and 'h' (hourly).
-    custom_output_file_path : str, optional
-        Custom path to save the Excel file
-
-    Returns
-    -------
-    None
-    """
-    print(f"...Writing Effects Results ({resample_by}) to Excel...")
-
-    if custom_output_file_path == "default":
-        output_file_path = calc.folder
-    else:
-        output_file_path = custom_output_file_path
-
-    filename = f"Effects_{resample_by}-{calc.infos['calculation']['name']}.xlsx"
-    path_excel = os.path.join(output_file_path, filename)
-
-    df_effects_sum = pd.DataFrame()
-    for effect_name, effect in calc.results["globalComp"].items():
-        if effect_name == "penalty":
-            continue
-        df_effects_sum[effect_name] = calc.get_effect_results(effect_name=effect_name, origin="all", as_TS=True, shares=False)
-    df_effects_sum = resample_data(data_frame=df_effects_sum, target_years=calc.years, resampling_by=resample_by, resampling_method="sum")
-    df_to_excel_w_chart(df_effects_sum, path_excel, "Effects_SUM", "See Legend", "Time", style="line")
-
-    df_effects_op = pd.DataFrame()
-    for effect_name, effect in calc.results["globalComp"].items():
-        if effect_name == "penalty":
-            continue
-        df_effects_op[effect_name] = calc.get_effect_results(effect_name=effect_name, origin="operation", as_TS=True, shares=False)
-    df_effects_op = resample_data(data_frame=df_effects_op, target_years=calc.years, resampling_by=resample_by, resampling_method="sum")
-    df_to_excel_w_chart(df_effects_op, path_excel, "Effects_OP", "diverse", "Time", style="line")
-
-    df_effects_inv = pd.DataFrame()
-    for effect_name, effect in calc.results["globalComp"].items():
-        if effect_name == "penalty":
-            continue
-        df_effects_inv[effect_name] = calc.get_effect_results(effect_name=effect_name, origin="invest", as_TS=True, shares=False)
-    df_effects_inv = resample_data(data_frame=df_effects_inv, target_years=calc.years, resampling_by=resample_by, resampling_method="sum")
-    df_to_excel_w_chart(df_effects_inv, path_excel, "Effects_Inv", "diverse", "Time", style="line")
-
-    print(f"......Effects ({resample_by}) finished")
-
-
-def df_to_excel_w_chart(df: pd.DataFrame, filepath: str, title: str, ylabel: str, xlabel: str, style:Literal["bar","line"]="bar"):
-    """
-    Write DataFrame to an Excel file with a stacked bar chart.
-
-    Parameters
-    ----------
-    df : pd.DataFrame
-        The DataFrame containing the data to be written.
-    filepath : str
-        The path to the Excel file. If the file doesn't exist, a new one will be created.
-    title : str
-        The title of the sheet and chart.
-    ylabel : str
-        The label for the y-axis of the chart.
-    xlabel : str
-        The label for the x-axis of the chart.
-
-    Returns
-    -------
-    None
-
-    Notes
-    -----
-    This function writes the provided DataFrame to an Excel file and adds a stacked bar chart to a new sheet in the workbook.
-    If the sheet with the given title already exists, it is removed before adding the new sheet.
-    The stacked bar chart is created based on the DataFrame structure, with columns as categories and rows as data points.
-    The chart is positioned at cell "D4" in the sheet.
-
-    """
-    try:
-        wb = load_workbook(filepath)
-    except FileNotFoundError:
-        template_path = os.path.join( os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                         "resources", "Template_blanco.xlsx")
-        wb = load_workbook(template_path)
-
-    # Check if the sheet already exists
-    if title in wb.sheetnames:
-        sheet = wb[title]
-        wb.remove(sheet)
-
-    # Add the sheet to the workbook
-    sheet = wb.create_sheet(title)
-
-    # Remove the index and save it as a column
-    df = df.reset_index()
-    # Write the data starting from the second row
-    for r in dataframe_to_rows(df, index=False, header=True):
-        sheet.append(r)
-
-    # Create the Data and References
-    data = Reference(sheet, min_col=2, min_row=1, max_col=df.shape[1], max_row=df.shape[0] + 1)
-    labels = Reference(sheet, min_col=1, min_row=2, max_row=df.shape[0] + 1)
-
-    # Create a stacked bar chart
-    if style=="bar":
-        chart = BarChart()
-        chart.add_data(data, titles_from_data=True)
-        chart.set_categories(labels)
-        # Stacked bar plot
-        chart.type = "col"
-        chart.grouping = "stacked"
-        chart.overlap = 100
-        chart.gapWidth = 0  # Adjust the gap between bars (e.g., set gapWidth to 0%)
-    elif style=="line":
-        chart = LineChart()
-        chart.add_data(data, titles_from_data=True)
-        chart.set_categories(labels)
-        # Stacked bar plot
-        chart.type = "line"
-
-    # General Chart stuff
-    chart.title = title
-    chart.y_axis.title = ylabel
-    chart.x_axis.title = xlabel
-    chart.width = 30
-    chart.height = 15
-
-    # Add the chart to the sheet
-    sheet.add_chart(chart, "D4")  # Adjust the position as needed
-
-    # Save the workbook
-    wb.save(filepath)
 
 
 class cExcelFcts():
@@ -533,18 +323,17 @@ class cExcelFcts():
         '''
 
         if resamply_by == "YE":
-            df_fernwaerme = self.calc.to_dataFrame("Fernwaerme", "in", grouped=False)  # ohne Wärmelast, ohne Speicher
-            df_fernwaerme.drop(columns=df_fernwaerme.filter(regex=r'^Speicher', axis=1).columns, axis=1, inplace=True)
+            df_fernwaerme = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=False)  # ohne Wärmelast, ohne Speicher
             df_fernwaerme_grouped = self.calc.group_df_by_mapping(df_fernwaerme)
-            df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped)
+            df_fernwaerme_grouped.drop(columns=["Wärmelast"], inplace=True)
         else:
-            df_fernwaerme_grouped = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=True, invert_Output=True)
-            df_fernwaerme_grouped["Wärmelast_mit_Verlust"] = -1 * df_fernwaerme_grouped["Wärmelast_mit_Verlust"]  # reinverting
-            df_fernwaerme_grouped = pd.concat([df_fernwaerme_grouped, getFuelCosts(self.calc)["Strompreis"]], axis=1)
-            df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped, ['Wärmelast_mit_Verlust', 'Strompreis'])
+            df_fernwaerme_grouped = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=True)
+            df_fernwaerme_grouped["Wärmelast"] = -1 * df_fernwaerme_grouped["Wärmelast"]  # reinverting
+            df_fernwaerme_grouped = pd.concat([df_fernwaerme_grouped, self.calc.getFuelCosts()["Strompreis"]], axis=1)
 
-        df_fernwaerme_erz_nach_techn = resample_data(df_fernwaerme_grouped_sorted, self.calc.years, resamply_by,
-                                                     rs_method)
+        df_fernwaerme_erz_nach_techn = resample_data(df_fernwaerme_grouped, self.calc.years, resamply_by, rs_method)
+
+        df_fernwaerme_erz_nach_techn = self.merge_into_dispatch_structure(df_fernwaerme_erz_nach_techn)
 
         return df_fernwaerme_erz_nach_techn
 
@@ -571,7 +360,9 @@ class cExcelFcts():
         if df_invest.empty:
             return df_invest
         else:
-            return resample_data(df_invest, self.calc.years, resamply_by, rs_method)
+            df_invest = resample_data(df_invest, self.calc.years, resamply_by, rs_method)
+            df_invest = self.merge_into_dispatch_structure(df_invest)
+            return df_invest
 
     def get_waermekosten(self, with_fix_costs, resamply_by):
         '''
@@ -591,7 +382,7 @@ class cExcelFcts():
         -------
         pd.DataFrame
         '''
-        heat = self.calc.to_dataFrame("Fernwaerme", "inout", invert_Output=False)["Waermelast__Qth"]
+        heat = self.calc.to_dataFrame("Waermebedarf", "in")
 
         if with_fix_costs:
             costs_total = pd.Series(self.calc.get_effect_results(effect_name="costs", origin="all", as_TS=True),
@@ -646,7 +437,7 @@ class cExcelFcts():
         -------
         pd.DataFrame
         '''
-        heat = self.calc.to_dataFrame("Fernwaerme", "inout", invert_Output=False)["Waermelast__Qth"]
+        heat = self.calc.to_dataFrame("Waermebedarf", "in")
 
         CO2 = pd.DataFrame(self.calc.get_effect_results(effect_name="CO2FW", origin="operation", as_TS=True),
                            index=self.calc.timeSeries)
@@ -777,11 +568,11 @@ class cExcelFcts():
         return df
 
     def get_fernwaerme_last_and_loss(self, resamply_by, rs_method):
-        df_fernwaerme_last = self.calc.to_dataFrame("Fernwaerme", "out", invert_Output=False).filter(like='Waermelast')
-        df_fernwaerme_last = reorder_columns(df_fernwaerme_last)
-        df_summed = resample_data(df_fernwaerme_last, self.calc.years, resamply_by, rs_method)
-        df_verluste_summed = (df_summed['Waermelast_Netzverluste__Qth'] / df_summed.sum(axis=1) * 100).rename(
-            "Verlust[%]").round(2)
+        df_demand = self.calc.to_dataFrame("Waermebedarf", "in")
+        df_loss = self.calc.to_dataFrame("Netzverluste", "in")
+        df = pd.concat([df_demand, df_loss], axis=1)
+        df_summed = resample_data(df, self.calc.years, resamply_by, rs_method)
+        df_verluste_summed = (df_summed.iloc[:, 1] / df_summed.sum(axis=1) * 100).rename("Verlust[%]").round(2)
 
         return pd.concat([df_summed, df_verluste_summed], axis=1)
 
@@ -822,6 +613,52 @@ class cExcelFcts():
 
         return df
 
+    def merge_into_dispatch_structure(self, df:pd.DataFrame) -> pd.DataFrame:
+        '''
+        Brings a dataframe into a predefined structure for dispatch evaluation.
+        Has space for 9 undefined columns
+        '''
+        # Step 1: Create an empty DataFrame with specific column names
+        fixed_columns_1 = ['TAB', 'Geothermie', 'Abwärme', 'WP', 'WP_2', 'EHK', 'KWK_Gas', 'KWK_H2',
+                           'Kessel_Gas', 'Kessel_H2', 'Speicher_S', 'Speicher_L', 'Kühler']  # First 11 fixed columns
+        undefined_columns = ['U1', 'U2', 'U3', 'U4', 'U5', 'U6', 'U7', 'U8', 'U9']  # 8 undefined placeholders
+        fixed_columns_2 = ['others', 'Wärmelast', 'Strompreis']  # Last 2 fixed columns
+
+        # Combine all parts into the final column structure
+        all_columns = fixed_columns_1 + undefined_columns + fixed_columns_2
+
+        # Step 2: Create the target DataFrame with this structure, initially filled with None
+        df_target = pd.DataFrame(columns=all_columns, index=df.index)
+
+        # String formattin to prevent unintended behaviour
+        df.columns = (df.columns
+                      .str.replace('ae', 'ä')
+                      .str.replace('oe', 'ö')
+                      .str.replace('ue', 'ü')
+                      .str.strip()
+                      )
+        df.columns = [col[0].upper() + col[1:] for col in df.columns]
+
+        # Merge logic
+        # Directly assign matched columns
+        for col in df.columns.intersection(df_target.columns):
+            df_target[col] = df[col]
+
+        # Handle unmatched columns by placing them into the undefined placeholders
+        unmatched_columns = df.columns.difference(df_target.columns)
+        unmatched_columns = sorted(unmatched_columns, key=lambda x: x.lower())  # sorting alphabetically
+        for i, col in enumerate(unmatched_columns):
+            if i < len(undefined_columns):  # Ensure there's an available placeholder
+                df_target[undefined_columns[i]] = df[col]
+                df_target = df_target.rename(columns={undefined_columns[i]: col})
+            else:
+                df_target['others'] = df[[col for col in unmatched_columns[i:]]].sum(axis=1)
+
+        # removing all values when all nan values
+        nan_columns = df_target.columns[df_target.isnull().all()]
+        rename_dict = {col: f"_{i}" for i, col in enumerate(nan_columns)}
+        df_target = df_target.rename(columns=rename_dict)
+        return df_target
 
 #TODO: Adjust cExcelFcts() in a way, that other effects, other bus names and so on can be used.
 # TODO: Evaluate, if even usefull

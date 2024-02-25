@@ -1,13 +1,16 @@
 import pandas as pd
 import numpy as np
 import os
-from typing import Literal
+from typing import Literal, Union, List
 import networkx as nx
 import plotly.graph_objects as go
 import plotly.express as px
 
 from flixOpt.flixPostprocessing import flix_results
 from flixOpt.flixStructure import cEnergySystem
+
+from flixOptExcel.Evaluation.HelperFcts_post import df_to_excel_w_chart, resample_data
+
 
 class flixPostXL(flix_results):
     def __init__(self, nameOfCalc, results_folder, outputYears):
@@ -27,11 +30,6 @@ class flixPostXL(flix_results):
             effects.remove("penalty")
         for key in effects:
             self.results.pop(key, None)
-
-        # add paths of templates
-        path_recources = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "resources")
-        self.templ_path_excel_main = os.path.join(path_recources, "TemplateMain.xlsx")
-        self.templ_path_excel_year = os.path.join(path_recources, "TemplateYear.xlsx")
 
     def _add_InvestTS_to_results(self):
         '''
@@ -248,8 +246,6 @@ class flixPostXL(flix_results):
         grouped_df = df.T.groupby(mapping).sum().T
         return pd.concat([grouped_df, df[ungrouped_columns]], axis=1)
 
-
-
     def get_exist_values(self, normalize = False) -> dict:
         '''
         Returns all exists_values for all comps in a dict with the name  of the comp as the key.
@@ -295,6 +291,7 @@ class flixPostXL(flix_results):
             exists_coll = normalized_data
 
         return exists_coll
+    
     def get_invest_results(self, flows:bool, storages:bool, actual_storage_capacity=False) -> dict:
         '''
         This function returns the investment results as numbers stored in a dict
@@ -340,7 +337,7 @@ class flixPostXL(flix_results):
 
         return invest_all
 
-    def get_invest_results_as_TS(self, flows:bool, storages:bool,grouped:bool=False, actual_storage_capacity= False) -> pd.DataFrame:
+    def get_invest_results_as_TS(self, flows:bool, storages:bool, grouped:bool=False, actual_storage_capacity= False) -> pd.DataFrame:
         '''
         This function returns the investment results as a Dataframe based on the existance of the comp
         :param flows: include flows
@@ -405,23 +402,169 @@ class flixPostXL(flix_results):
 
 
         return df
-    #
 
-    # Grafik typ 1: Bus-Bilanz - Fernwärmeerz, Stromerzeugung
-    # self.to_dataFrame()
+    def write_bus_results_to_excel(self, resample_by: Literal["YE", "d", "h"] = "d",
+                                   custom_output_file_path: str = "default"):
+        """
+        Save the in- and out-flows of every bus to an Excel file.
 
-    # Grafik Typ 2: Investment Results (Leistung/Kapa)
-    # self.get_invest_results()
-    # self.get_invest_results_as_TS()
+        Parameters
+        ----------
+        calc : flixPostXL
+            The flixPostXL object containing the calculation results.
+        resample_by : str, optional
+            The time frequency for resampling data (e.g., 'd' for daily), by default "d".
+            Allowed values are 'YE' (yearly), 'd' (daily), and 'h' (hourly).
+        custom_output_file_path : str, optional
+            Custom path to save the Excel file
 
-    # Grafik Typ 3: Effekte (Kosten/CO2/...)
-    # self.get_effect_results()
+        Returns
+        -------
+        None
+        """
+        print(f"...Writing Bus Results ({resample_by}) to Excel...")
 
-    # Grafik Typ 4: Sources (Energieträger ???
-    # self.get_sources_and_sinks()
+        if custom_output_file_path == "default":
+            output_file_path = self.folder
+        else:
+            output_file_path = custom_output_file_path
 
-    # Grafik Typ 5: Speicher Füllstand
-    #TODO
+        filename = f"Buses_{resample_by}-{self.infos['calculation']['name']}.xlsx"
+        path_excel = os.path.join(output_file_path, filename)
+
+        for bus_name in self.buses:
+            data = self.to_dataFrame(busOrComp=bus_name, direction="inout", invert_Output=True) * -1
+            data = resample_data(data_frame=data, target_years=self.years, resampling_by=resample_by,
+                                 resampling_method="mean")
+            df_to_excel_w_chart(data, path_excel, bus_name, "MW", "Time")
+
+        print(f"......Buses ({resample_by}) finished")
+
+    def write_component_results_to_excel(self, resample_by: Literal["YE", "d", "h"] = "d",
+                                         custom_output_file_path: str = "default"):
+        """
+        Save the in- and out-flows of every component to an Excel file.
+
+        Parameters
+        ----------
+        calc : flixPostXL
+            The flixPostXL object containing the calculation results.
+        resample_by : str, optional
+            The time frequency for resampling data (e.g., 'd' for daily), by default "d".
+            Allowed values are 'YE' (yearly), 'd' (daily), and 'h' (hourly).
+        custom_output_file_path : str, optional
+            Custom path to save the Excel file
+
+        Returns
+        -------
+        None
+        """
+        print(f"...Writing Components Results ({resample_by}) to Excel...")
+
+        if custom_output_file_path == "default":
+            output_file_path = self.folder
+        else:
+            output_file_path = custom_output_file_path
+
+        filename = f"Comps_{resample_by}-{self.infos['calculation']['name']}.xlsx"
+        path_excel = os.path.join(output_file_path, filename)
+
+        for comp_name in self.comps:
+            data = self.to_dataFrame(busOrComp=comp_name, direction="inout", invert_Output=True) * -1
+            data = resample_data(data_frame=data, target_years=self.years, resampling_by=resample_by,
+                                 resampling_method="mean")
+            df_to_excel_w_chart(data, path_excel, comp_name, "MW", "Time")
+
+        print(f"......Components ({resample_by}) finished")
+
+    def write_effect_results_to_excel(self, resample_by: Literal["YE", "d", "h"] = "d",
+                                      custom_output_file_path: str = "default"):
+        """
+        Save summarized effects data to an Excel file.
+
+        Parameters
+        ----------
+        calc : flixPostXL
+            The flixPostXL object containing the calculation results.
+        resample_by : str, optional
+            The time frequency for resampling data (e.g., 'd' for daily), by default "d".
+            Allowed values are 'YE' (yearly), 'd' (daily), and 'h' (hourly).
+        custom_output_file_path : str, optional
+            Custom path to save the Excel file
+
+        Returns
+        -------
+        None
+        """
+        print(f"...Writing Effects Results ({resample_by}) to Excel...")
+
+        if custom_output_file_path == "default":
+            output_file_path = self.folder
+        else:
+            output_file_path = custom_output_file_path
+
+        filename = f"Effects_{resample_by}-{self.infos['calculation']['name']}.xlsx"
+        path_excel = os.path.join(output_file_path, filename)
+
+        df_effects_sum = pd.DataFrame()
+        for effect_name, effect in self.results["globalComp"].items():
+            if effect_name == "penalty":
+                continue
+            df_effects_sum[effect_name] = self.get_effect_results(effect_name=effect_name, origin="all", as_TS=True,
+                                                                  shares=False)
+        df_effects_sum = resample_data(data_frame=df_effects_sum, target_years=self.years, resampling_by=resample_by,
+                                       resampling_method="sum")
+        df_to_excel_w_chart(df_effects_sum, path_excel, "Effects_SUM", "See Legend", "Time", style="line")
+
+        df_effects_op = pd.DataFrame()
+        for effect_name, effect in self.results["globalComp"].items():
+            if effect_name == "penalty":
+                continue
+            df_effects_op[effect_name] = self.get_effect_results(effect_name=effect_name, origin="operation",
+                                                                 as_TS=True, shares=False)
+        df_effects_op = resample_data(data_frame=df_effects_op, target_years=self.years, resampling_by=resample_by,
+                                      resampling_method="sum")
+        df_to_excel_w_chart(df_effects_op, path_excel, "Effects_OP", "diverse", "Time", style="line")
+
+        df_effects_inv = pd.DataFrame()
+        for effect_name, effect in self.results["globalComp"].items():
+            if effect_name == "penalty":
+                continue
+            df_effects_inv[effect_name] = self.get_effect_results(effect_name=effect_name, origin="invest", as_TS=True,
+                                                                  shares=False)
+        df_effects_inv = resample_data(data_frame=df_effects_inv, target_years=self.years, resampling_by=resample_by,
+                                       resampling_method="sum")
+        df_to_excel_w_chart(df_effects_inv, path_excel, "Effects_Inv", "diverse", "Time", style="line")
+
+        print(f"......Effects ({resample_by}) finished")
+
+    def getFuelCosts(self) -> pd.DataFrame:
+        '''
+        Returns the costs per flow hour of every medium in a DataFrame. Data saved in a special component ("HelperPreise").
+
+        Parameters
+        ----------
+        calc : flixPostXL
+            Solved calculation of type flixPostXL.
+
+        Returns
+        -------
+        pd.DataFrame
+            DataFrame containing the costs per flow hour for each medium. Columns represent different media,
+            and rows represent the time series.
+        '''
+        (discard, flows) = self.getFlowsOf("HelperPreise")
+        result_dataframe = pd.DataFrame(index=self.timeSeries)
+        for flow in flows:
+            name = flow.label_full.split("_")[-1]
+            ar = flow.results["costsPerFlowHour_standard"]
+            if isinstance(ar, (float, int)):
+                ar = ar * np.ones(len(self.timeSeries))
+
+            new_dataframe = pd.DataFrame({name: ar}, index=self.timeSeries)
+            result_dataframe = pd.concat([result_dataframe, new_dataframe], axis=1)
+
+        return result_dataframe.head(len(self.timeSeries))
 
 
 

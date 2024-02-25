@@ -1,11 +1,10 @@
 import pandas as pd
 import numpy as np
-import timeit
-import datetime
 import os.path
 from typing import Literal, List, Union
-
-from flixOptExcel.Evaluation.flixPostprocessingXL import flixPostXL
+from openpyxl import load_workbook
+from openpyxl.chart import BarChart, Reference,LineChart
+from openpyxl.utils.dataframe import dataframe_to_rows
 
 
 def resample_data(data_frame: Union[pd.DataFrame, np.ndarray], target_years: List[int], resampling_by: Literal["YE", "d", "h"],
@@ -129,34 +128,6 @@ def rs_in_two_steps(data_frame: Union[pd.DataFrame, np.ndarray], target_years: L
 
     return df_result
 
-def getFuelCosts(calc:flixPostXL) -> pd.DataFrame:
-    '''
-    Returns the costs per flow hour of every medium in a DataFrame. Data saved in a special component ("HelperPreise").
-
-    Parameters
-    ----------
-    calc : flixPostXL
-        Solved calculation of type flixPostXL.
-
-    Returns
-    -------
-    pd.DataFrame
-        DataFrame containing the costs per flow hour for each medium. Columns represent different media,
-        and rows represent the time series.
-    '''
-    (discard, flows) = calc.getFlowsOf("HelperPreise")
-    result_dataframe = pd.DataFrame(index=calc.timeSeries)
-    for flow in flows:
-        name = flow.label_full.split("_")[-1]
-        ar = flow.results["costsPerFlowHour_standard"]
-        if isinstance(ar,(float,int)):
-            ar=ar * np.ones(len(calc.timeSeries))
-
-        new_dataframe = pd.DataFrame({name: ar}, index=calc.timeSeries)
-        result_dataframe = pd.concat([result_dataframe, new_dataframe], axis=1)
-
-    return result_dataframe.head(len(calc.timeSeries))
-
 def reorder_columns(df:pd.DataFrame, not_sorted_columns: List[str] = None):
     '''
     Order a DataFrame by a custom function, excluding specified columns from sorting, and setting them as the first columns.
@@ -174,10 +145,8 @@ def reorder_columns(df:pd.DataFrame, not_sorted_columns: List[str] = None):
         DataFrame with the desired column order.
     '''
     if isinstance(df, pd.Series): df = df.to_frame().T
-
-    means = df.sum()
-    sorted_columns = means.sort_values(ascending=False).index
-    sorted_df = df[sorted_columns]
+    sorted_columns = sorted(df.columns, key=lambda x: x.lower())
+    sorted_df = df.reindex(columns=sorted_columns)
 
     # Select the remaining columns excluding the first two
     if not_sorted_columns is None:
@@ -192,94 +161,87 @@ def reorder_columns(df:pd.DataFrame, not_sorted_columns: List[str] = None):
 
     return new_order_df
 
-
-#old
-def sum_columns_by_prefix(df:pd.DataFrame, prefixes:List[str]):
+def df_to_excel_w_chart(df: pd.DataFrame, filepath: str, title: str, ylabel: str, xlabel: str, style:Literal["bar","line"]="bar"):
     """
-        Sum up columns in a DataFrame based on specified prefixes.
+    Write DataFrame to an Excel file with a stacked bar chart.
 
-        Parameters
-        ----------
-        df : pd.DataFrame
-            Pandas DataFrame.
-        prefixes : List[str]
-            List of strings, prefixes to filter columns.
+    Parameters
+    ----------
+    df : pd.DataFrame
+        The DataFrame containing the data to be written.
+    filepath : str
+        The path to the Excel file. If the file doesn't exist, a new one will be created.
+    title : str
+        The title of the sheet and chart.
+    ylabel : str
+        The label for the y-axis of the chart.
+    xlabel : str
+        The label for the x-axis of the chart.
 
-        Returns
-        -------
-        pd.DataFrame
-            DataFrame with the summation results for each prefix, and the other, not summed columns.
-        """
-    result_columns = []
+    Returns
+    -------
+    None
 
-    # Track columns that were already considered for summation
-    columns_already_summed = set()
+    Notes
+    -----
+    This function writes the provided DataFrame to an Excel file and adds a stacked bar chart to a new sheet in the workbook.
+    If the sheet with the given title already exists, it is removed before adding the new sheet.
+    The stacked bar chart is created based on the DataFrame structure, with columns as categories and rows as data points.
+    The chart is positioned at cell "D4" in the sheet.
 
-    for prefix in prefixes:
-        selected_columns = df.filter(regex=f'^{prefix}', axis=1) # DataFrame
-        selected_columns_sum = selected_columns.sum(axis=1).rename(prefix) # Dataframe
-        if selected_columns.empty:
-            continue
-        else:
-            result_columns.append(selected_columns_sum)
-            # Update the set of columns already summed
-            columns_already_summed.update(selected_columns.columns)
+    """
+    try:
+        wb = load_workbook(filepath)
+    except FileNotFoundError:
+        template_path = os.path.join( os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                         "resources", "Template_blanco.xlsx")
+        wb = load_workbook(template_path)
 
-    # Include only the columns not previously summed up
-    non_summed_columns = df.columns.difference(columns_already_summed)
-    if len(result_columns) == 0: # if list is  empty
-        result_df = df[non_summed_columns]
-    else:
-        result_df = pd.concat(result_columns, axis=1)
-        result_df = pd.concat([result_df, df[non_summed_columns]], axis=1)
+    # Check if the sheet already exists
+    if title in wb.sheetnames:
+        sheet = wb[title]
+        wb.remove(sheet)
 
+    # Add the sheet to the workbook
+    sheet = wb.create_sheet(title)
 
-    return result_df
+    # Remove the index and save it as a column
+    df = df.reset_index()
+    # Write the data starting from the second row
+    for r in dataframe_to_rows(df, index=False, header=True):
+        sheet.append(r)
 
+    # Create the Data and References
+    data = Reference(sheet, min_col=2, min_row=1, max_col=df.shape[1], max_row=df.shape[0] + 1)
+    labels = Reference(sheet, min_col=1, min_row=2, max_row=df.shape[0] + 1)
 
+    # Create a stacked bar chart
+    if style=="bar":
+        chart = BarChart()
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(labels)
+        # Stacked bar plot
+        chart.type = "col"
+        chart.grouping = "stacked"
+        chart.overlap = 100
+        chart.gapWidth = 0  # Adjust the gap between bars (e.g., set gapWidth to 0%)
+    elif style=="line":
+        chart = LineChart()
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(labels)
+        # Stacked bar plot
+        chart.type = "line"
 
+    # General Chart stuff
+    chart.title = title
+    chart.y_axis.title = ylabel
+    chart.x_axis.title = xlabel
+    chart.width = 30
+    chart.height = 15
 
-class RuntimeTracker():
-    def __init__(self, label:str):
-        '''
-        Parameters
-        ----------
-        label : str
-            name of Tracker
-        group : int
-            0: general
-            1: Year 1
-            2: Year 2
-            ...
+    # Add the chart to the sheet
+    sheet.add_chart(chart, "D4")  # Adjust the position as needed
 
-        Returns
-        -------
-        None.
+    # Save the workbook
+    wb.save(filepath)
 
-        '''
-        self.label=label
-        self.startTime = timeit.default_timer()
-        self.stop_time = None
-
-    def stop(self):
-        if self.stop_time is None:
-            self.stop_time = timeit.default_timer()
-            self.text()
-        else:
-            print("Timer was already stopped")
-
-    def duration(self):
-        self.stop()
-        return self.stop_time - self.startTime
-
-
-    def text(self, supress_print=False):
-        if self.stop_time is None: raise Exception(f"Timer '{self.label} not stopped yet")
-        duration = datetime.timedelta(milliseconds=(self.stop_time - self.startTime)*1000)
-        text=f"{duration}  [HH:MM:SS.ms]: Runtime of {self.label}"
-        if not supress_print:
-            print(text)
-        return text
-
-
-print()
