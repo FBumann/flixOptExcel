@@ -320,17 +320,15 @@ class cExcelFcts():
         if resamply_by == "YE":
             df_fernwaerme = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=False)  # ohne Wärmelast, ohne Speicher
             df_fernwaerme_grouped = self.calc.group_df_by_mapping(df_fernwaerme)
-            df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped, ["Wärmelast"])
-            df_empty = pd.DataFrame(0, index=df_fernwaerme_grouped_sorted.index, columns = ["*"])
-            df_fernwaerme_grouped_sorted = pd.concat([df_empty, df_fernwaerme_grouped_sorted], axis=1)
+            df_fernwaerme_grouped.drop(columns=["Wärmelast"], inplace=True)
         else:
-            df_fernwaerme_grouped = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=True, invert_Output=True)
+            df_fernwaerme_grouped = self.calc.to_dataFrame("Fernwaerme", "inout", grouped=True)
             df_fernwaerme_grouped["Wärmelast"] = -1 * df_fernwaerme_grouped["Wärmelast"]  # reinverting
             df_fernwaerme_grouped = pd.concat([df_fernwaerme_grouped, self.calc.getFuelCosts()["Strompreis"]], axis=1)
-            df_fernwaerme_grouped_sorted = reorder_columns(df_fernwaerme_grouped, ['Wärmelast', 'Strompreis'])
 
-        df_fernwaerme_erz_nach_techn = resample_data(df_fernwaerme_grouped_sorted, self.calc.years, resamply_by,
-                                                     rs_method)
+        df_fernwaerme_erz_nach_techn = resample_data(df_fernwaerme_grouped, self.calc.years, resamply_by, rs_method)
+
+        df_fernwaerme_erz_nach_techn = self.merge_into_dispatch_structure(df_fernwaerme_erz_nach_techn)
 
         return df_fernwaerme_erz_nach_techn
 
@@ -357,9 +355,9 @@ class cExcelFcts():
         if df_invest.empty:
             return df_invest
         else:
-            df_empty = pd.DataFrame(0, index=df_invest.index, columns = ["*","**"])
-            df_invest = pd.concat([df_empty, df_invest], axis=1)
-            return resample_data(df_invest, self.calc.years, resamply_by, rs_method)
+            df_invest = resample_data(df_invest, self.calc.years, resamply_by, rs_method)
+            df_invest = self.merge_into_dispatch_structure(df_invest)
+            return df_invest
 
     def get_waermekosten(self, with_fix_costs, resamply_by):
         '''
@@ -610,6 +608,52 @@ class cExcelFcts():
 
         return df
 
+    def merge_into_dispatch_structure(self, df:pd.DataFrame) -> pd.DataFrame:
+        '''
+        Brings a dataframe into a predefined structure for dispatch evaluation.
+        Has space for 9 undefined columns
+        '''
+        # Step 1: Create an empty DataFrame with specific column names
+        fixed_columns_1 = ['TAB', 'Geothermie', 'Abwärme', 'WP', 'WP_2', 'EHK', 'KWK_Gas', 'KWK_H2',
+                           'Kessel_Gas', 'Kessel_H2', 'Speicher_S', 'Speicher_L', 'Kühler']  # First 11 fixed columns
+        undefined_columns = ['U1', 'U2', 'U3', 'U4', 'U5', 'U6', 'U7', 'U8', 'U9']  # 8 undefined placeholders
+        fixed_columns_2 = ['others', 'Wärmelast', 'Strompreis']  # Last 2 fixed columns
+
+        # Combine all parts into the final column structure
+        all_columns = fixed_columns_1 + undefined_columns + fixed_columns_2
+
+        # Step 2: Create the target DataFrame with this structure, initially filled with None
+        df_target = pd.DataFrame(columns=all_columns, index=df.index)
+
+        # String formattin to prevent unintended behaviour
+        df.columns = (df.columns
+                      .str.replace('ae', 'ä')
+                      .str.replace('oe', 'ö')
+                      .str.replace('ue', 'ü')
+                      .str.strip()
+                      )
+        df.columns = [col[0].upper() + col[1:] for col in df.columns]
+
+        # Merge logic
+        # Directly assign matched columns
+        for col in df.columns.intersection(df_target.columns):
+            df_target[col] = df[col]
+
+        # Handle unmatched columns by placing them into the undefined placeholders
+        unmatched_columns = df.columns.difference(df_target.columns)
+        unmatched_columns = sorted(unmatched_columns, key=lambda x: x.lower())  # sorting alphabetically
+        for i, col in enumerate(unmatched_columns):
+            if i < len(undefined_columns):  # Ensure there's an available placeholder
+                df_target[undefined_columns[i]] = df[col]
+                df_target = df_target.rename(columns={undefined_columns[i]: col})
+            else:
+                df_target['others'] = df[[col for col in unmatched_columns[i:]]].sum(axis=1)
+
+        # removing all values when all nan values
+        nan_columns = df_target.columns[df_target.isnull().all()]
+        rename_dict = {col: f"_{i}" for i, col in enumerate(nan_columns)}
+        df_target = df_target.rename(columns=rename_dict)
+        return df_target
 
 #TODO: Adjust cExcelFcts() in a way, that other effects, other bus names and so on can be used.
 # TODO: Evaluate, if even usefull
