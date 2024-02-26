@@ -26,7 +26,6 @@ class ExcelData:
 
         # Time Series Data
         self.time_series_data = self._read_time_series_data()
-        self._further_calculations()  #TODO: Refactor to other class (No IO action)
 
         # Component Data
         self.components_data = self._read_components()

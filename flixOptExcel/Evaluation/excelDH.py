@@ -656,7 +656,7 @@ class cExcelFcts():
 
         # removing all values when all nan values
         nan_columns = df_target.columns[df_target.isnull().all()]
-        rename_dict = {col: f"_{i}" for i, col in enumerate(nan_columns)}
+        rename_dict = {col: "."*i for i, col in enumerate(nan_columns)}
         df_target = df_target.rename(columns=rename_dict)
         return df_target
 

@@ -175,6 +175,9 @@ class ExcelModel:
         with open(os.path.join(self.final_directory, "component_data.txt"), "w") as log_file:
             pp(self.excel_data.components_data, log_file)
 
+        with open(os.path.join(self.final_directory, "System_Description.txt"), "w") as log_file:
+            print(self.district_heating_system.final_model, file=log_file)
+
     def _adjust_calc_name_and_results_folder(self):
         if os.path.exists(self.final_directory):
             for i in range(1, 100):
@@ -202,6 +205,7 @@ class DistrictHeatingSystem:
         self.timeSeries = excel_data.time_series_data.index.to_numpy()
         self.co2_limit_dict = excel_data.co2_limits
         self.co2_factors = excel_data.co2_factors
+        self.heating_network_temperature_curves = excel_data.heating_network_temperature_curves
 
         self._handle_heating_network()
 
@@ -691,7 +695,7 @@ class KWK(DistrictHeatingComponent):
                     exists=self.exists(district_heating_system),
                     Q_th=cFlow(label='Qth',
                                bus=district_heating_system.busses["Fernwaerme"],
-                               nominal_val=self.thermal_power,
+                               nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
                                investArgs=self.invest_args(self.thermal_power, district_heating_system),
                                **self.kwargs(district_heating_system.time_series_data)
                                ),
@@ -783,7 +787,7 @@ class Kessel(DistrictHeatingComponent):
                        exists=self.exists(district_heating_system),
                        Q_th=cFlow(label='Qth',
                                   bus=district_heating_system.busses["Fernwaerme"],
-                                  nominal_val=self.thermal_power,
+                                  nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
                                   investArgs=self.invest_args(self.thermal_power, district_heating_system),
                                   **self.kwargs(district_heating_system.time_series_data)
                                   ),
@@ -823,7 +827,7 @@ class Storage(DistrictHeatingComponent):
 
         storage = cStorage(label=self.label,
                            group=self.group,
-                           capacity_inFlowHours=self.capacity,
+                           capacity_inFlowHours=self._handle_invest_parameter(self.capacity)["value"],
                            eta_load=self.eta_load,
                            eta_unload=self.eta_unload,
                            max_rel_chargeState=np.append(self.max_rel, self.max_rel[-1]),
@@ -832,7 +836,7 @@ class Storage(DistrictHeatingComponent):
                            inFlow=cFlow(label='QthLoad',
                                         bus=dh_sys.busses["Fernwaerme"],
                                         exists=self.exists(dh_sys),
-                                        nominal_val=self.thermal_power,
+                                        nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
                                         max_rel=self.max_rel,
                                         investArgs=invest_args_load,
                                         **self.kwargs(dh_sys.time_series_data)
@@ -840,7 +844,7 @@ class Storage(DistrictHeatingComponent):
                            outFlow=cFlow(label='QthUnload',
                                          bus=dh_sys.busses["Fernwaerme"],
                                          exists=self.exists(dh_sys),
-                                         nominal_val=self.thermal_power,
+                                         nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
                                          max_rel=self.max_rel,
                                          investArgs=invest_args_unload,
                                          ),
@@ -948,7 +952,7 @@ class Waermepumpe(DistrictHeatingComponent):
                          exists=self.exists(district_heating_system),
                          Q_th=cFlow(label='Qth',
                                     bus=district_heating_system.busses["Fernwaerme"],
-                                    nominal_val=self.thermal_power,
+                                    nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
                                     max_rel=self.max_rel,
                                     costsPerFlowHour=self.thermal_reward_per_flow_hour(district_heating_system),
                                     investArgs=self.invest_args(self.thermal_power, district_heating_system),
@@ -1083,7 +1087,7 @@ class AbwaermeWaermepumpe(Waermepumpe):
                            exists=self.exists(district_heating_system),
                            Q_th=cFlow(label='Qth',
                                       bus=district_heating_system.busses["Fernwaerme"],
-                                      nominal_val=self.thermal_power,
+                                      nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
                                       max_rel=self.max_rel,
                                       investArgs=self.invest_args(self.thermal_power,district_heating_system),
                                       **self.kwargs(district_heating_system.time_series_data)
@@ -1119,8 +1123,8 @@ class Geothermie(Waermepumpe):
                            exists=self.exists(district_heating_system),
                            Q_th=cFlow(label='Qth',
                                       bus=district_heating_system.busses["Fernwaerme"],
-                                      nominal_val=self.thermal_power,
-                                      max_rel=self._limit_usage(district_heating_system),
+                                      nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
+                                      max_rel=self.max_rel,
                                       investArgs=self.invest_args(self.thermal_power,district_heating_system),
                                       **self.kwargs(district_heating_system.time_series_data)
                                       ),
@@ -1157,7 +1161,7 @@ class Abwaerme(DistrictHeatingComponent):
         '''
         q_th = cFlow(label='Qth',
                      bus=district_heating_system.busses["Fernwaerme"],
-                     nominal_val=self.thermal_power,
+                     nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
                      investArgs=self.invest_args(self.thermal_power,district_heating_system),
                      **self.kwargs(district_heating_system.time_series_data)
                      )
@@ -1185,7 +1189,7 @@ class EHK(DistrictHeatingComponent):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self.eta_th = self._typechecked_attr("eta_th", [float, str])
-        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Brennstoff", [int, float])
+        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Strom", [int, float], 0)
 
     def fuel_costs_per_flow_hour(self, dhy: DistrictHeatingSystem) -> dict:
         '''
@@ -1193,7 +1197,7 @@ class EHK(DistrictHeatingComponent):
         '''
         costs_dict = {
             dhy.effects["costs"]:
-                self._convert_value_to_TS("StromBezug", dhy.time_series_data) +
+                self._convert_value_to_TS("Strom", dhy.time_series_data) +
                 self._convert_value_to_TS(self.extra_fuel_costs, dhy.time_series_data)
         }
 
@@ -1216,7 +1220,7 @@ class EHK(DistrictHeatingComponent):
                     exists=self.exists(district_heating_system),
                     Q_th=cFlow(label='Qth',
                                bus=district_heating_system.busses["Fernwaerme"],
-                               nominal_val=self.thermal_power,
+                               nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
                                investArgs=self.invest_args(self.thermal_power,district_heating_system),
                                **self.kwargs(district_heating_system.time_series_data)
                                ),
@@ -1250,7 +1254,7 @@ class Rueckkuehler(DistrictHeatingComponent):
                              specificElectricityDemand=self.electricity_use,
                              Q_th=cFlow(label='Qth',
                                         bus=district_heating_system.busses["Fernwaerme"],
-                                        nominal_val=self.thermal_power,
+                                        nominal_val=self._handle_invest_parameter(self.thermal_power)["value"],
                                         investArgs=self.invest_args(self.thermal_power,district_heating_system),
                                         **self.kwargs(district_heating_system.time_series_data)
                                         ),
@@ -1268,7 +1272,7 @@ class Rueckkuehler(DistrictHeatingComponent):
         '''
         costs_dict = {
             dhs.effects["costs"]:
-                self._convert_value_to_TS("StromBezug", dhs.time_series_data) +
+                self._convert_value_to_TS("Strom", dhs.time_series_data) +
                 self._convert_value_to_TS(self.extra_fuel_costs, dhs.time_series_data)
         }
 
@@ -1298,7 +1302,7 @@ class KWKekt(DistrictHeatingComponent):
         self.eta_th = self._typechecked_attr("eta_th", [float, str])
         self.eta_el = self._typechecked_attr("eta_el", [float, str])
         self.fuel_type = self._typechecked_attr("Brennstoff", [str])
-        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Brennstoff", [int, float])
+        self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Brennstoff", [int, float], 0)
 
         self.fuel_power = self._typechecked_attr("Brennstoff Leistung", [int, float])
         self.electric_power_points = self._typechecked_attr("Elektrische Leistung (Stützpunkte)", [str])
@@ -1336,10 +1340,8 @@ class KWKekt(DistrictHeatingComponent):
         '''
         return {
             dhs.effects["costs"]:
-                self._convert_value_to_TS("StromBezug", dhs.time_series_data) +
+                self._convert_value_to_TS("Strom", dhs.time_series_data) +
                 self._convert_value_to_TS(self.extra_fuel_costs, dhs.time_series_data),
-            dhs.effects["CO2FW"]:
-                self.co2_reward_for_electricity_production(dhs)
         }
 
     def fuel_costs_per_flow_hour(self, dhs: DistrictHeatingSystem) -> dict:
