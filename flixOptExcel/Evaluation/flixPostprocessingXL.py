@@ -132,7 +132,7 @@ class flixPostXL(flix_results):
             target_value = abs(effect_results["all"]["sum"])
             calculated_value = abs(effect_results["all"]["sum_TS"].sum())
             missing_value = abs(calculated_value - target_value)
-            if target_value == 0:
+            if -1e-6 <= target_value <= 1e-6:
                 if abs(missing_value) >= 0.01:
                     raise Exception(f"Investments missing in {effect_name}. Missing Value is: {missing_value}")
             else:
