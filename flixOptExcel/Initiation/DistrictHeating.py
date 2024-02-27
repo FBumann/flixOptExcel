@@ -726,7 +726,7 @@ class KWK(DistrictHeatingComponent):
         t_amb = district_heating_system.time_series_data["Tamb"].to_numpy() + 273.15
         n_el = self.eta_el
         n_th = self.eta_th
-        co2_fuel: float = district_heating_system.co2_factors.get("Erdgas", 0)
+        co2_fuel: float = district_heating_system.co2_factors.get(self.fuel_type, 0)
 
         # Berechnung der co2-Gutschrift für die Stromproduktion nach der Carnot-Methode
         t_s = (t_vl - t_rl) / np.log((t_vl / t_rl))  # Temperatur Nutzwärme
