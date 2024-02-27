@@ -1277,26 +1277,8 @@ class Rueckkuehler(DistrictHeatingComponent):
 
 class KWKekt(DistrictHeatingComponent):
     def __init__(self, **kwargs):
-        # no super():__init__() needed
-        # # Copied from District heating Component. Removed stuff about thermal power.
-        self._kwargs_data: dict = kwargs
+        super().__init__(**kwargs)
 
-        self.label = self._typechecked_attr('Name', [str])
-        self.group = self._typechecked_attr('Gruppe', [str], None)
-
-        # Invest
-        self.optional = self._typechecked_attr('Optional', [bool], None)
-        self.first_year = self._typechecked_attr('Startjahr', [int], None)
-        self.last_year = self._typechecked_attr('Endjahr', [int], None)
-        self.costs_fix = self._typechecked_attr('Fixkosten pro Jahr', [int, float], None)
-        self.fund_fix = self._typechecked_attr('Förderung pro Jahr', [int, float], None)
-        self.costs_var = self._typechecked_attr('Fixkosten pro MW und Jahr', [int, float], None)
-        self.fund_var = self._typechecked_attr('Förderung pro MW und Jahr', [int, float], None)
-        self.invest_group = self._typechecked_attr('Investgruppe', [str], None)
-        # # Copied from District heating Component. Removed stuff about thermal power.
-
-        self.eta_th = self._typechecked_attr("eta_th", [float, str])
-        self.eta_el = self._typechecked_attr("eta_el", [float, str])
         self.fuel_type = self._typechecked_attr("Brennstoff", [str])
         self.extra_fuel_costs = self._typechecked_attr("Zusatzkosten pro MWh Brennstoff", [int, float], 0)
 
@@ -1311,6 +1293,9 @@ class KWKekt(DistrictHeatingComponent):
         '''
         Adds the Component to the given system
         '''
+        if np.sum(self.exists(district_heating_system)) == 0:
+            return
+
 
         comp = KWKektB(label=self.label,
                        group=self.group,
@@ -1328,16 +1313,14 @@ class KWKekt(DistrictHeatingComponent):
                        **self.kwargs(district_heating_system.time_series_data)
                        )
 
-        district_heating_system.final_model.addComponents(comp)
+        district_heating_system.final_model.addComponents(*comp)
 
     def electricity_reward_per_flow_hour(self, dhs: DistrictHeatingSystem) -> dict:
         '''
         Information about fuel costs per flow hour
         '''
         return {
-            dhs.effects["costs"]:
-                self._convert_value_to_TS("Strom", dhs.time_series_data) +
-                self._convert_value_to_TS(self.extra_fuel_costs, dhs.time_series_data),
+            dhs.effects["costs"]: -1 * self._convert_value_to_TS("Strom", dhs.time_series_data)
         }
 
     def fuel_costs_per_flow_hour(self, dhs: DistrictHeatingSystem) -> dict:
