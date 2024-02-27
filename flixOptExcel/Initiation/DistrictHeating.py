@@ -586,7 +586,7 @@ class DistrictHeatingComponent(ABC):
     def _convert_value_to_TS(self, value: Union[float, int, str], time_series_data: pd.DataFrame) -> np.ndarray:
         if isinstance(value, (int, float)):
             return np.ones(len(time_series_data.index)) * value
-        elif value in time_series_data.keys():
+        elif value in time_series_data.columns:
             return time_series_data[value].to_numpy()
         else:
             raise Exception(f"{value} of '{self.label}' is not in given TimeSeries Data.")
