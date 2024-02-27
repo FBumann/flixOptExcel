@@ -1032,7 +1032,7 @@ class Waermepumpe(DistrictHeatingComponent):
             if self.lower_bound_ts is None:
                 raise ValueError(f"If a lower bound is given to imit useage of '{self.label}', "
                                  f"you must specify a time series")
-            limiting_ts = self._convert_value_to_TS(self.lower_bound_of_operation, time_series_data)
+            limiting_ts = self._convert_value_to_TS(self.lower_bound_ts, time_series_data)
             return np.where(limiting_ts <= self.lower_bound_of_operation, 0, 1)
 
     def _get_cop_value(self, time_series_data:pd.DataFrame) -> np.ndarray:
