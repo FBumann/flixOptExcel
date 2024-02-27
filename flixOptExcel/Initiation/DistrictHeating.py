@@ -1109,8 +1109,7 @@ class AbwaermeWaermepumpe(Waermepumpe):
 class Geothermie(Waermepumpe):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.waste_heat_costs = self._typechecked_attr("Abwärmekosten", [int, float, str])
-        self.pump_electricity = self._typechecked_attr("Anteil Pumpstrom", [float])
+        self.pump_electricity = self._typechecked_attr("Anteil Pumpstrom pro MW_geo", [float])
 
     def add_to_model(self, district_heating_system: DistrictHeatingSystem):
         '''
@@ -1133,10 +1132,7 @@ class Geothermie(Waermepumpe):
                                       costsPerFlowHour=self.electricity_costs_per_flow_hour(district_heating_system)
                                       ),
                            Q_ab=cFlow(label='Qab',
-                                      bus=district_heating_system.busses["Abwaerme"],
-                                      costsPerFlowHour={district_heating_system.effects["costs"]:
-                                                            self.waste_heat_costs
-                                                        }
+                                      bus=district_heating_system.busses["Abwaerme"]
                                       )
                            )
 
