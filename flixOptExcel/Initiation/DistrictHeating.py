@@ -631,7 +631,7 @@ class DistrictHeatingComponent(ABC):
         if isinstance(invest_parameter, str):
             if self._check_str_format_min_max(invest_parameter):
                 invest_parameter_decoded["min"] = float(invest_parameter.split("-")[0])
-                invest_parameter_decoded["max"] = float(invest_painvest_parameterrameter.split("-")[1])
+                invest_parameter_decoded["max"] = float(invest_parameter.split("-")[1])
                 invest_parameter_decoded["value"] = None
             else:
                 raise Exception(f"Wrong format of string for thermal_power '{invest_parameter}'."
