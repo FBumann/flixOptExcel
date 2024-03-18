@@ -830,6 +830,7 @@ class Storage(DistrictHeatingComponent):
                            capacity_inFlowHours=self._handle_invest_parameter(self.capacity)["value"],
                            eta_load=self.eta_load,
                            eta_unload=self.eta_unload,
+                           fracLossPerHour=self.losses_per_hour,
                            max_rel_chargeState=np.append(self.max_rel, self.max_rel[-1]),
                            exists=self.exists(dh_sys),
                            investArgs=self.invest_args_capacity(dh_sys),
